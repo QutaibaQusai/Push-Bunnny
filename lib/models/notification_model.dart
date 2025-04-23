@@ -7,8 +7,6 @@ class NotificationModel {
   final String body;
   final DateTime timestamp;
   final String? imageUrl;
-  final String? groupId;
-  final String? groupName;
 
   NotificationModel({
     required this.id,
@@ -17,8 +15,6 @@ class NotificationModel {
     required this.body,
     required this.timestamp,
     this.imageUrl,
-    this.groupId,
-    this.groupName,
   });
 
   factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
@@ -30,8 +26,6 @@ class NotificationModel {
       body: data['body'] ?? '',
       timestamp: data['timestamp']?.toDate() ?? DateTime.now(),
       imageUrl: data['imageUrl'],
-      groupId: data['groupId'],
-      groupName: data['groupName'],
     );
   }
 }

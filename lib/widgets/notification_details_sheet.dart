@@ -24,7 +24,7 @@ class NotificationDetailsSheet extends StatelessWidget {
         children: [
           if (notification.imageUrl != null) _buildImageSection(context),
           _buildDragHandle(),
-          _buildContentSection(),
+          Flexible(child: _buildContentSection()),
           _buildCloseButton(context),
         ],
       ),
@@ -74,20 +74,18 @@ class NotificationDetailsSheet extends StatelessWidget {
   }
 
   Widget _buildContentSection() {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 16),
-              _buildBodyText(),
-              _buildTimestamp(),
-            ],
-          ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 16),
+            _buildBodyText(),
+            _buildTimestamp(),
+          ],
         ),
       ),
     );
@@ -97,7 +95,7 @@ class NotificationDetailsSheet extends StatelessWidget {
     return Text(
       notification.title,
       style: AppFonts.listItemTitle.copyWith(
-        fontSize: AppFonts.heading2,
+        fontSize: AppFonts.heading3,
         fontWeight: AppFonts.bold,
         color: AppColors.textPrimary,
       ),
@@ -108,7 +106,7 @@ class NotificationDetailsSheet extends StatelessWidget {
     return Text(
       notification.body,
       style: AppFonts.listItemSubtitle.copyWith(
-        fontSize: AppFonts.bodyLarge,
+        fontSize: AppFonts.bodyMedium,
         height: AppFonts.lineHeightRelaxed,
         color: AppColors.textSecondary,
       ),
@@ -148,7 +146,7 @@ class NotificationDetailsSheet extends StatelessWidget {
         child: Text(
           'Close',
           style: AppFonts.listItemTitle.copyWith(
-            fontSize: AppFonts.bodyLarge,
+            fontSize: AppFonts.bodyMedium,
             fontWeight: AppFonts.medium,
             color: Colors.white,
           ),

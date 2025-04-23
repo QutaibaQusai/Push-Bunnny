@@ -52,7 +52,7 @@ class NotificationCard extends StatelessWidget {
       autoClose: true,
       padding: EdgeInsets.zero, // Remove padding to make it fill the space
       child: Container(
-        color: Colors.red, // Ensures the background is red across the full area
+        color: Colors.red,
         alignment: Alignment.center,
         child: Icon(Icons.delete, size: 24, color: Colors.white),
       ),
