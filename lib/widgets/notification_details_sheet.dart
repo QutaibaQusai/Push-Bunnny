@@ -128,30 +128,49 @@ class NotificationDetailsSheet extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildCloseButton(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      child: ElevatedButton(
-        onPressed: () => Navigator.pop(context),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          minimumSize: const Size(double.infinity, 46),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+Widget _buildCloseButton(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+    child: Container(
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-        ),
-        child: Text(
-          'Close',
-          style: AppFonts.listItemTitle.copyWith(
-            fontSize: AppFonts.bodyMedium,
-            fontWeight: AppFonts.medium,
-            color: Colors.white,
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          splashColor: Colors.white24,
+          highlightColor: Colors.white10,
+          onTap: () => Navigator.pop(context),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Close',
+                  style: AppFonts.listItemTitle.copyWith(
+                    fontSize: AppFonts.bodyLarge,
+                    fontWeight: AppFonts.semiBold,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

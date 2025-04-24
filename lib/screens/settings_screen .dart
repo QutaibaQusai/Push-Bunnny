@@ -111,101 +111,154 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildTokenCard() {
-    return Container(
-      color: AppColors.card,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _copyTokenToClipboard,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.vpn_key_outlined,
-                        color: AppColors.secondary,
-                        size: 20,
+ Widget _buildTokenCard() {
+  return Container(
+    decoration: BoxDecoration(
+      gradient: AppColors.subtleGradient,
+      borderRadius: BorderRadius.circular(12), // More rounded corners
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.shadow.withOpacity(0.25),
+          blurRadius: 12,
+          offset: const Offset(0, 3),
+          spreadRadius: 1,
+        ),
+      ],
+    ),
+    margin: const EdgeInsets.symmetric(horizontal: 2), // Slight margin for shadow visibility
+    child: Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: _copyTokenToClipboard,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(18), // Slightly more padding
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.accentGradient,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.2),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.vpn_key_outlined,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    'Device Token', 
+                    style: AppFonts.cardTitle.copyWith(
+                      letterSpacing: 0.2,
+                      fontWeight: AppFonts.semiBold,
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isTokenCopied
+                          ? AppColors.success.withOpacity(0.12)
+                          : AppColors.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isTokenCopied
+                            ? AppColors.success.withOpacity(0.3)
+                            : AppColors.primary.withOpacity(0.25),
+                        width: 1,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Text('Device Token', style: AppFonts.cardTitle),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            isTokenCopied
-                                ? Colors.green.withOpacity(0.1)
-                                : AppColors.secondary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isTokenCopied ? Icons.check : Icons.copy,
-                            size: 14,
-                            color:
-                                isTokenCopied
-                                    ? Colors.green
-                                    : AppColors.secondary,
+                    child: Row(
+                      children: [
+                        Icon(
+                          isTokenCopied ? Icons.check : Icons.copy,
+                          size: 14,
+                          color: isTokenCopied
+                              ? AppColors.success
+                              : AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isTokenCopied ? 'Copied' : 'Copy',
+                          style: AppFonts.copyButton.copyWith(
+                            color: isTokenCopied
+                                ? AppColors.success
+                                : AppColors.primary,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isTokenCopied ? 'Copied' : 'Copy',
-                            style: AppFonts.copyButton.copyWith(
-                              color:
-                                  isTokenCopied
-                                      ? Colors.green
-                                      : AppColors.secondary,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade100),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.shade50,
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                      spreadRadius: 1,
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade200),
+                child: Text(
+                  deviceToken ?? 'Fetching token...',
+                  style: AppFonts.monospace.copyWith(
+                    height: 1.4,
+                    color: AppColors.textPrimary.withOpacity(0.85),
                   ),
-                  child: Text(
-                    deviceToken ?? 'Fetching token...',
-                    style: AppFonts.monospace,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 12,
+                    color: AppColors.textTertiary,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tap to copy your device token',
-                  style: AppFonts.tokenHint,
-                ),
-              ],
-            ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Tap to copy your device token',
+                    style: AppFonts.tokenHint.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _buildSettingCard(
     String title,
     String subtitle,

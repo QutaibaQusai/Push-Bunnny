@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:page_transition/page_transition.dart';
 import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
 import 'package:push_bunnny/models/notification_model.dart';
@@ -22,32 +21,48 @@ class NotificationHistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Push Bunnny',
-          style: AppFonts.appBarTitle,
-        ), // Access static property
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 1,
+          style: AppFonts.appBarTitle.copyWith(
+            fontSize: 18,
+            letterSpacing: 0.2,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.secondary, AppColors.primary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 0,
         centerTitle: false,
         actions: [
-          GestureDetector(
+          InkWell(
             onTap: () {
               Navigator.push(
                 context,
-                PageTransition(
-                  type: PageTransitionType.rightToLeft,
-                  child: const SettingsScreen(),
-                ),
+                MaterialPageRoute<void>(builder: (context) => SettingsScreen()),
               );
             },
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
-              child: CircleAvatar(
-                radius: 15,
-                backgroundColor: Colors.white,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
                 child: CircleAvatar(
-                  radius: 14,
-                  backgroundImage: AssetImage('assets/logoIcon.png'),
-                  backgroundColor: Colors.transparent,
+                  radius: 15,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, color: AppColors.primary),
                 ),
               ),
             ),

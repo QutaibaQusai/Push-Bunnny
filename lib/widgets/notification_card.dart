@@ -64,7 +64,7 @@ class NotificationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+          bottom: BorderSide(color: Colors.grey.shade100, width: 0.5),
         ),
       ),
       child: Material(
@@ -72,10 +72,21 @@ class NotificationCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [_buildNotificationContent(timeString)],
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(top: 6, right: 12),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppColors.accentGradient,
+                  ),
+                ),
+                _buildNotificationContent(timeString),
+              ],
             ),
           ),
         ),
