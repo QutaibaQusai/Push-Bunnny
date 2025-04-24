@@ -19,13 +19,19 @@ class NotificationHistoryScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Push Bunnny',
-          style: AppFonts.appBarTitle.copyWith(
-            fontSize: 18,
-            letterSpacing: 0.2,
-            fontWeight: FontWeight.w600,
-          ),
+        title: Row(
+          children: [
+            Text(
+              'Push Bunnny',
+              style: AppFonts.appBarTitle.copyWith(
+                fontSize: 18,
+                letterSpacing: 0.2,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Image.asset('assets/iconWhite.png', height: 24, width: 24),
+          ],
         ),
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -69,6 +75,7 @@ class NotificationHistoryScreen extends StatelessWidget {
           ),
         ],
       ),
+
       body: Container(
         color: AppColors.background,
         child: StreamBuilder<QuerySnapshot>(
