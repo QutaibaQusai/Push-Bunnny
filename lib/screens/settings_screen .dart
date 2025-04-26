@@ -10,7 +10,7 @@ import '../widgets/group_subscription_card.dart';
 import '../widgets/group_subscription_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
-  SettingsScreen({super.key});
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -26,19 +26,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadDeviceToken();
+    _checkNotificationStatus();
   }
 
   void _loadDeviceToken() async {
     String? token = await FirebaseMessaging.instance.getToken();
-    setState(() {
-      deviceToken = token;
-    });
+    if (mounted) {
+      setState(() {
+        deviceToken = token;
+      });
+    }
   }
 
-  void _handleToggle(bool value) {
+  void _checkNotificationStatus() async {
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    if (mounted) {
+      setState(() {
+        notificationsEnabled = settings.authorizationStatus == AuthorizationStatus.authorized;
+      });
+    }
+  }
+
+  void _handleToggle(bool value) async {
     setState(() {
       notificationsEnabled = value;
     });
+    
+    if (value) {
+      // Request permissions if toggled on
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
   }
 
   void _copyTokenToClipboard() {
@@ -142,19 +163,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
         false;
 
     if (confirm) {
-      await _groupService.unsubscribeFromGroup(groupId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unsubscribed from channel',
-            style: AppFonts.listItemSubtitle.copyWith(fontSize: 14),
-          ),
-          backgroundColor: Colors.black87,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(8),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      try {
+        await _groupService.unsubscribeFromGroup(groupId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Unsubscribed from channel',
+                style: AppFonts.listItemSubtitle.copyWith(fontSize: 14),
+              ),
+              backgroundColor: Colors.black87,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(8),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Error unsubscribing: ${e.toString()}',
+                style: AppFonts.listItemSubtitle.copyWith(fontSize: 14),
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(8),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -237,7 +277,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
             padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                strokeWidth: 2.0,
+              ),
+            ),
           );
         }
 
@@ -316,8 +361,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text('Settings', style: AppFonts.appBarTitle),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.secondary, AppColors.primary],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         elevation: 1,
         centerTitle: false,
       ),
@@ -331,7 +383,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionTitle('Notification Settings'),
             _buildSettingCard(
               'Enable Notifications',
-              'Receive push notifications from Push Bunnny',
+              'Receive push notifications from Push Bunny',
               Icons.notifications_outlined,
               isToggle: true,
               initialToggleValue: notificationsEnabled,
@@ -340,17 +392,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
             _buildGroupSubscriptionSection(),
 
-            _buildSectionTitle('About Push Bunnny'),
+            _buildSectionTitle('About Push Bunny'),
             _buildSettingCard(
               'About',
               'App version and information',
               Icons.info_outline,
-              onTap: () {},
+              onTap: () {
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'Push Bunny',
+                  applicationVersion: '1.0.0',
+                  applicationIcon: Image.asset('assets/iconWhite.png', height: 50, width: 50),
+                  applicationLegalese: '© 2025 Push Bunny',
+                );
+              },
+            ),
+            
+            // Add logout or clear data section if needed
+            _buildSectionTitle('Data Management'),
+            _buildSettingCard(
+              'Clear Notification History',
+              'Delete all notification history from this device',
+              Icons.delete_outline,
+              onTap: () {
+                // Show confirmation dialog and clear notifications
+                _showClearHistoryDialog();
+              },
             ),
           ],
         ),
       ),
     );
+  }
+  
+  void _showClearHistoryDialog() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Notification History'),
+          content: const Text('This will delete all your notification history. This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('CANCEL'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('CLEAR', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+    
+    if (confirm) {
+      try {
+        // Delete all notifications for the current user
+        final userId = 'anonymous'; // Replace with actual user ID when authentication is implemented
+        final notifications = await FirebaseFirestore.instance
+            .collection('notifications')
+            .where('userId', isEqualTo: userId)
+            .get();
+            
+        // Delete in batches
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in notifications.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Notification history cleared'),
+              backgroundColor: Colors.black87,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error clearing history: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildSectionTitle(String title) {
@@ -375,7 +509,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
       margin: const EdgeInsets.symmetric(
-        horizontal: 2,
+        horizontal: 16,
       ), // Slight margin for shadow visibility
       child: Material(
         color: Colors.transparent,

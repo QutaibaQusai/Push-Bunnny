@@ -1,4 +1,3 @@
-// In group_subscription_dialog.dart
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_font.dart';
@@ -17,6 +16,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
   final _groupNameController = TextEditingController();
   final _groupSubscriptionService = GroupSubscriptionService();
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -28,11 +28,23 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
 
       try {
         // Use the group name as both ID and name
         final groupName = _groupNameController.text.trim();
+        
+        // Check if already subscribed
+        bool isAlreadySubscribed = await _groupSubscriptionService.isSubscribedToGroup(groupName);
+        if (isAlreadySubscribed) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'You are already subscribed to this channel';
+          });
+          return;
+        }
+        
         await _groupSubscriptionService.subscribeToGroup(groupName, groupName);
 
         if (mounted) {
@@ -41,20 +53,9 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
       } catch (e) {
         debugPrint('Error subscribing to group: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Failed to subscribe to group',
-                style: AppFonts.snackBar,
-              ),
-              backgroundColor: Colors.red.shade800,
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
           setState(() {
             _isLoading = false;
+            _errorMessage = 'Failed to subscribe: ${e.toString()}';
           });
         }
       }
@@ -102,14 +103,44 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.red.shade300),
+                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter a channel name';
                   }
+                  if (value.contains(' ')) {
+                    return 'Channel name cannot contain spaces';
+                  }
                   return null;
                 },
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade100),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, size: 16, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -125,6 +156,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                   ElevatedButton(
                     onPressed: _isLoading ? null : _subscribeToGroup,
                     style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
                       backgroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
@@ -146,10 +178,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                                 ),
                               ),
                             )
-                            : Text(
-                              'Subscribe',
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            : const Text('Subscribe'),
                   ),
                 ],
               ),

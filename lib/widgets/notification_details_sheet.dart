@@ -3,11 +3,18 @@ import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_font.dart';
 import '../models/notification_model.dart';
+import '../services/notification_service.dart';
 
 class NotificationDetailsSheet extends StatelessWidget {
   final NotificationModel notification;
+  final NotificationService _notificationService = NotificationService();
 
-  const NotificationDetailsSheet({super.key, required this.notification});
+  NotificationDetailsSheet({super.key, required this.notification}) {
+    // Mark notification as read when details are opened
+    if (!notification.isRead) {
+      _notificationService.markNotificationAsRead(notification.id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,11 +68,30 @@ class NotificationDetailsSheet extends StatelessWidget {
           return Container(
             color: Colors.grey.shade100,
             alignment: Alignment.center,
+            height: MediaQuery.of(context).size.height * 0.35,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: const AlwaysStoppedAnimation<Color>(
+              valueColor: AlwaysStoppedAnimation<Color>(
                 AppColors.secondary,
               ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey.shade100,
+            alignment: Alignment.center,
+            height: MediaQuery.of(context).size.height * 0.2,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, size: 48, color: Colors.grey.shade400),
+                const SizedBox(height: 8),
+                Text(
+                  'Could not load image',
+                  style: AppFonts.cardSubtitle,
+                ),
+              ],
             ),
           );
         },
@@ -84,6 +110,12 @@ class NotificationDetailsSheet extends StatelessWidget {
             _buildHeader(),
             const SizedBox(height: 16),
             _buildBodyText(),
+            const SizedBox(height: 12),
+            
+            // Show group information if available
+            if (notification.groupId != null && notification.groupName != null)
+              _buildGroupInfo(),
+              
             _buildTimestamp(),
           ],
         ),
@@ -112,6 +144,58 @@ class NotificationDetailsSheet extends StatelessWidget {
       ),
     );
   }
+  
+  Widget _buildGroupInfo() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.2),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.group,
+              size: 16,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Sent to Channel',
+                style: AppFonts.listItemSubtitle.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                notification.groupName!,
+                style: AppFonts.cardTitle.copyWith(
+                  color: AppColors.primary,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildTimestamp() {
     return Padding(
@@ -128,49 +212,50 @@ class NotificationDetailsSheet extends StatelessWidget {
       ),
     );
   }
-Widget _buildCloseButton(BuildContext context) {
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-    child: Container(
-      height: 44,
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.25),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
+
+  Widget _buildCloseButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
           borderRadius: BorderRadius.circular(22),
-          splashColor: Colors.white24,
-          highlightColor: Colors.white10,
-          onTap: () => Navigator.pop(context),
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Close',
-                  style: AppFonts.listItemTitle.copyWith(
-                    fontSize: AppFonts.bodyLarge,
-                    fontWeight: AppFonts.semiBold,
-                    color: Colors.white,
-                    letterSpacing: 0.3,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            splashColor: Colors.white24,
+            highlightColor: Colors.white10,
+            onTap: () => Navigator.pop(context),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Close',
+                    style: AppFonts.listItemTitle.copyWith(
+                      fontSize: AppFonts.bodyLarge,
+                      fontWeight: AppFonts.semiBold,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

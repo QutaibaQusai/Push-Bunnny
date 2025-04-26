@@ -29,6 +29,9 @@ Future<void> saveNotificationToFirestore(
       'timestamp': FieldValue.serverTimestamp(),
       'userId': user?.uid ?? 'anonymous',
       'appState': appState,
+      // Add group information if available
+      'groupId': message.data['groupId'],
+      'groupName': message.data['groupName'],
     });
   } catch (e) {
     debugPrint('Error saving notification: $e');
