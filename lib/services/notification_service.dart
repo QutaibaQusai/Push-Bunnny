@@ -26,7 +26,7 @@ class NotificationService {
     // Simple query first - just get all notifications without filters to test
     yield* _firestore
         .collection('notifications')
-        .limit(10) // Just get a few to test
+        .where('userId', isEqualTo: userId)
         .snapshots();
   }
 
