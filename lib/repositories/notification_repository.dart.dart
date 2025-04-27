@@ -14,7 +14,6 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
   playSound: true,
 );
 
-// Helper function that can be used from the background handler
 Future<void> saveNotificationToFirestore(
   RemoteMessage message,
   String appState,
@@ -24,6 +23,26 @@ Future<void> saveNotificationToFirestore(
     final authService = AuthService();
     final userId = await authService.getUserId();
 
+    // Extract group information from the message
+    String? groupId;
+    String? groupName;
+
+    // Check if the message is from a topic
+    if (message.from != null && message.from!.startsWith('/topics/')) {
+      // Extract the topic name from the 'from' field (remove '/topics/' prefix)
+      groupId = message.from!.substring(8);
+      groupName = groupId; // Use the groupId as the name if not specified
+
+      debugPrint('Message from topic: $groupId');
+    }
+
+    // Check data payload for explicit group info (this overrides topic-based extraction)
+    if (message.data.containsKey('groupId')) {
+      groupId = message.data['groupId'];
+      groupName = message.data['groupName'] ?? groupId;
+      debugPrint('Message has explicit group info: $groupId - $groupName');
+    }
+
     await FirebaseFirestore.instance.collection('notifications').add({
       'title': message.notification?.title ?? 'No title',
       'body': message.notification?.body ?? 'No body',
@@ -32,10 +51,18 @@ Future<void> saveNotificationToFirestore(
       'timestamp': FieldValue.serverTimestamp(),
       'userId': userId,
       'appState': appState,
+
+      // Add topic/from information
+      'from': message.from,
+
       // Add group information if available
-      'groupId': message.data['groupId'],
-      'groupName': message.data['groupName'],
+      'groupId': groupId,
+      'groupName': groupName,
     });
+
+    debugPrint(
+      'Notification saved with groupId: $groupId, from: ${message.from}',
+    );
   } catch (e) {
     debugPrint('Error saving notification: $e');
   }

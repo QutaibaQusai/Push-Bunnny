@@ -34,9 +34,10 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
       try {
         // Use the group name as both ID and name
         final groupName = _groupNameController.text.trim();
-        
+
         // Check if already subscribed
-        bool isAlreadySubscribed = await _groupSubscriptionService.isSubscribedToGroup(groupName);
+        bool isAlreadySubscribed = await _groupSubscriptionService
+            .isSubscribedToGroup(groupName);
         if (isAlreadySubscribed) {
           setState(() {
             _isLoading = false;
@@ -44,7 +45,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
           });
           return;
         }
-        
+
         await _groupSubscriptionService.subscribeToGroup(groupName, groupName);
 
         if (mounted) {
@@ -89,7 +90,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
               Text(
                 'Subscribe to Channel',
                 style: AppFonts.sectionTitle.copyWith(
-                  fontSize: 18,
+                  fontSize: AppFonts.bodyLarge,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -98,6 +99,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                 controller: _groupNameController,
                 decoration: InputDecoration(
                   labelText: 'Channel Name',
+                  labelStyle: TextStyle(fontSize: AppFonts.bodyMedium),
                   hintText: 'Enter channel name to subscribe',
                   prefixIcon: Icon(Icons.campaign, color: AppColors.primary),
                   border: OutlineInputBorder(
@@ -129,12 +131,19 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, size: 16, color: Colors.red.shade700),
+                      Icon(
+                        Icons.error_outline,
+                        size: 16,
+                        color: Colors.red.shade700,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -150,7 +159,10 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                         _isLoading ? null : () => Navigator.of(context).pop(),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: AppColors.textTertiary),
+                      style: TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: AppFonts.bodyMedium,
+                      ),
                     ),
                   ),
                   ElevatedButton(
@@ -158,6 +170,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.white,
                       backgroundColor: AppColors.primary,
+
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,
@@ -178,7 +191,10 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                                 ),
                               ),
                             )
-                            : const Text('Subscribe'),
+                            : const Text(
+                              'Subscribe',
+                              style: TextStyle(fontSize: AppFonts.bodyMedium),
+                            ),
                   ),
                 ],
               ),

@@ -10,7 +10,6 @@ class NotificationDetailsSheet extends StatelessWidget {
   final NotificationService _notificationService = NotificationService();
 
   NotificationDetailsSheet({super.key, required this.notification}) {
-    // Mark notification as read when details are opened
     if (!notification.isRead) {
       _notificationService.markNotificationAsRead(notification.id);
     }
@@ -71,9 +70,7 @@ class NotificationDetailsSheet extends StatelessWidget {
             height: MediaQuery.of(context).size.height * 0.35,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                AppColors.secondary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
             ),
           );
         },
@@ -87,10 +84,7 @@ class NotificationDetailsSheet extends StatelessWidget {
               children: [
                 Icon(Icons.broken_image, size: 48, color: Colors.grey.shade400),
                 const SizedBox(height: 8),
-                Text(
-                  'Could not load image',
-                  style: AppFonts.cardSubtitle,
-                ),
+                Text('Could not load image', style: AppFonts.cardSubtitle),
               ],
             ),
           );
@@ -101,22 +95,28 @@ class NotificationDetailsSheet extends StatelessWidget {
 
   Widget _buildContentSection() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 5, 20, 5),
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 5),
             _buildBodyText(),
             const SizedBox(height: 12),
-            
-            // Show group information if available
-            if (notification.groupId != null && notification.groupName != null)
-              _buildGroupInfo(),
-              
-            _buildTimestamp(),
+
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+
+              children: [
+                _buildTimestamp(),
+                Spacer(),
+                if (notification.groupId != null &&
+                    notification.groupName != null)
+                  _buildGroupInfo(),
+              ],
+            ),
           ],
         ),
       ),
@@ -144,53 +144,29 @@ class NotificationDetailsSheet extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildGroupInfo() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.primaryLight.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: AppColors.primary.withOpacity(0.2),
           width: 0.5,
         ),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
+          Icon(Icons.campaign, size: 12, color: AppColors.background),
+          const SizedBox(width: 4),
+          Text(
+            notification.groupName!,
+            style: AppFonts.cardTitle.copyWith(
+              color: AppColors.background,
+              fontSize: AppFonts.small,
             ),
-            child: Icon(
-              Icons.group,
-              size: 16,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sent to Channel',
-                style: AppFonts.listItemSubtitle.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                notification.groupName!,
-                style: AppFonts.cardTitle.copyWith(
-                  color: AppColors.primary,
-                  fontSize: 14,
-                ),
-              ),
-            ],
           ),
         ],
       ),

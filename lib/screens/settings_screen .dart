@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:push_bunnny/auth_service.dart';
 import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:push_bunnny/screens/about_screen.dart';
 import '../models/group_subscription_model.dart';
 import '../services/group_subscription_service.dart';
 import '../widgets/group_subscription_card.dart';
@@ -36,11 +38,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       isLoading = true;
     });
-    
+
     await _loadDeviceToken();
     await _loadUserId();
     await _checkNotificationStatus();
-    
+
     if (mounted) {
       setState(() {
         isLoading = false;
@@ -60,28 +62,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
       debugPrint('Error loading user ID: $e');
     }
   }
-Future<void> _loadDeviceToken() async {
-  String? token = await FirebaseMessaging.instance.getToken();
-  if (mounted) {
-    setState(() {
-      deviceToken = token;
-    });
-  }
-}
 
-Future<void> _checkNotificationStatus() async {
-  final settings = await FirebaseMessaging.instance.getNotificationSettings();
-  if (mounted) {
-    setState(() {
-      notificationsEnabled = settings.authorizationStatus == AuthorizationStatus.authorized;
-    });
+  Future<void> _loadDeviceToken() async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    if (mounted) {
+      setState(() {
+        deviceToken = token;
+      });
+    }
   }
-}
+
+  Future<void> _checkNotificationStatus() async {
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    if (mounted) {
+      setState(() {
+        notificationsEnabled =
+            settings.authorizationStatus == AuthorizationStatus.authorized;
+      });
+    }
+  }
+
   void _handleToggle(bool value) async {
     setState(() {
       notificationsEnabled = value;
     });
-    
+
     if (value) {
       // Request permissions if toggled on
       await FirebaseMessaging.instance.requestPermission(
@@ -233,7 +238,7 @@ Future<void> _checkNotificationStatus() async {
     if (userId == null) {
       return Center(child: CircularProgressIndicator());
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -394,6 +399,7 @@ Future<void> _checkNotificationStatus() async {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        iconTheme: IconThemeData(color: Colors.white),
         title: Text('Settings', style: AppFonts.appBarTitle),
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -407,105 +413,117 @@ Future<void> _checkNotificationStatus() async {
         elevation: 1,
         centerTitle: false,
       ),
-      body: isLoading 
-          ? Center(child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
-            ))
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle('Device Settings'),
-                  _buildTokenCard(),
-                  const SizedBox(height: 16),
-                  _buildSectionTitle('Notification Settings'),
-                  _buildSettingCard(
-                    'Enable Notifications',
-                    'Receive push notifications from Push Bunny',
-                    Icons.notifications_outlined,
-                    isToggle: true,
-                    initialToggleValue: notificationsEnabled,
-                    onToggleChanged: _handleToggle,
+      body:
+          isLoading
+              ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.secondary,
                   ),
-                  const SizedBox(height: 16),
-                  _buildGroupSubscriptionSection(),
+                ),
+              )
+              : SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Device Settings'),
+                    _buildTokenCard(),
+                    const SizedBox(height: 16),
+                    _buildSectionTitle('Notification Settings'),
+                    _buildSettingCard(
+                      'Enable Notifications',
+                      'Receive push notifications from Push Bunny',
+                      Icons.notifications_outlined,
+                      isToggle: true,
+                      initialToggleValue: notificationsEnabled,
+                      onToggleChanged: _handleToggle,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildGroupSubscriptionSection(),
 
-                  _buildSectionTitle('About Push Bunny'),
-                  _buildSettingCard(
-                    'About',
-                    'App version and information',
-                    Icons.info_outline,
-                    onTap: () {
-                      showAboutDialog(
-                        context: context,
-                        applicationName: 'Push Bunny',
-                        applicationVersion: '1.0.0',
-                        applicationIcon: Image.asset('assets/iconWhite.png', height: 50, width: 50),
-                        applicationLegalese: '© 2025 Push Bunny',
-                      );
-                    },
-                  ),
-                  
-                  // Add logout or clear data section if needed
-                  _buildSectionTitle('Data Management'),
-                  _buildSettingCard(
-                    'Clear Notification History',
-                    'Delete all notification history from this device',
-                    Icons.delete_outline,
-                    onTap: () {
-                      // Show confirmation dialog and clear notifications
-                      _showClearHistoryDialog();
-                    },
-                  ),
-                ],
+                    _buildSectionTitle('Data Management'),
+                    _buildSettingCard(
+                      'Clear Notification History',
+                      'Delete all notification history from this device',
+                      Icons.delete_outline,
+                      onTap: () {
+                        _showClearHistoryDialog();
+                      },
+                    ),
+                    _buildSectionTitle('About Push Bunny'),
+
+                    _buildSettingCard(
+                      'About',
+                      'App version and information',
+                      Icons.info_outline,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          PageTransition(
+                            type: PageTransitionType.fade,
+                            child: AboutScreen(),
+                            duration: Duration(milliseconds: 100),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
     );
   }
-  
+
   void _showClearHistoryDialog() async {
-    bool confirm = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Clear Notification History'),
-          content: const Text('This will delete all your notification history. This action cannot be undone.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('CANCEL'),
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-            ),
-            TextButton(
-              child: const Text('CLEAR', style: TextStyle(color: Colors.red)),
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-            ),
-          ],
-        );
-      },
-    ) ?? false;
-    
+    bool confirm =
+        await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Clear Notification History'),
+              content: const Text(
+                'This will delete all your notification history. This action cannot be undone.',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('CANCEL'),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                ),
+                TextButton(
+                  child: const Text(
+                    'CLEAR',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
     if (confirm) {
       try {
         // Get the current user ID
         final String currentUserId = await _authService.getUserId();
-        
+
         // Delete all notifications for the current user
-        final notifications = await FirebaseFirestore.instance
-            .collection('notifications')
-            .where('userId', isEqualTo: currentUserId)
-            .get();
-            
+        final notifications =
+            await FirebaseFirestore.instance
+                .collection('notifications')
+                .where('userId', isEqualTo: currentUserId)
+                .get();
+
         // Delete in batches
         final batch = FirebaseFirestore.instance.batch();
         for (var doc in notifications.docs) {
           batch.delete(doc.reference);
         }
         await batch.commit();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -536,9 +554,10 @@ Future<void> _checkNotificationStatus() async {
 
   Widget _buildTokenCard() {
     String displayToken = deviceToken ?? 'Fetching token...';
-    
-    // If the token is the same as the user ID, highlight this information
-    bool isUserIdentifier = userId != null && deviceToken != null && userId == deviceToken;
+
+    // // If the token is the same as the user ID, highlight this information
+    // bool isUserIdentifier =
+    //     userId != null && deviceToken != null && userId == deviceToken;
 
     return Container(
       decoration: BoxDecoration(
@@ -561,7 +580,7 @@ Future<void> _checkNotificationStatus() async {
           onTap: _copyTokenToClipboard,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(5),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -641,8 +660,7 @@ Future<void> _checkNotificationStatus() async {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
-                // Show token
+
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -672,43 +690,42 @@ Future<void> _checkNotificationStatus() async {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                
-                // Show user ID info if needed
-                if (isUserIdentifier) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: AppColors.success.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 12,
-                          color: AppColors.success,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Used as your device identifier',
-                          style: AppFonts.tokenHint.copyWith(
-                            color: AppColors.success,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                
+
+                // // Show user ID info if needed
+                // if (isUserIdentifier) ...[
+                //   const SizedBox(height: 10),
+                //   Container(
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 8,
+                //       vertical: 4,
+                //     ),
+                //     decoration: BoxDecoration(
+                //       color: AppColors.success.withOpacity(0.1),
+                //       borderRadius: BorderRadius.circular(4),
+                //       border: Border.all(
+                //         color: AppColors.success.withOpacity(0.3),
+                //       ),
+                //     ),
+                //     child: Row(
+                //       mainAxisSize: MainAxisSize.min,
+                //       children: [
+                //         Icon(
+                //           Icons.info_outline,
+                //           size: 12,
+                //           color: AppColors.success,
+                //         ),
+                //         const SizedBox(width: 4),
+                //         Text(
+                //           'Used as your device identifier',
+                //           style: AppFonts.tokenHint.copyWith(
+                //             color: AppColors.success,
+                //             fontWeight: FontWeight.w500,
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // ],
                 const SizedBox(height: 10),
                 Row(
                   children: [

@@ -40,7 +40,7 @@ class NotificationCard extends StatelessWidget {
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inHours < 24) {
       return dateFormat.format(timestamp);
     } else if (difference.inDays < 7) {
@@ -59,6 +59,7 @@ class NotificationCard extends StatelessWidget {
       padding: EdgeInsets.zero, // Remove padding to make it fill the space
       child: Container(
         color: Colors.red,
+
         alignment: Alignment.center,
         child: const Icon(Icons.delete, size: 24, color: Colors.white),
       ),
@@ -68,20 +69,24 @@ class NotificationCard extends StatelessWidget {
   Widget _buildCardContent(String timeString) {
     return Container(
       decoration: BoxDecoration(
-        color: notification.isRead ? AppColors.card : AppColors.card.withOpacity(0.96),
+        color:
+            notification.isRead
+                ? AppColors.card
+                : AppColors.card.withOpacity(0.96),
         border: Border(
           bottom: BorderSide(color: Colors.grey.shade100, width: 0.5),
         ),
         // Add a subtle indication that the notification is unread
-        boxShadow: notification.isRead 
-            ? [] 
-            : [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.07),
-                  blurRadius: 1,
-                  spreadRadius: 1,
-                ),
-              ],
+        boxShadow:
+            notification.isRead
+                ? []
+                : [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.07),
+                    blurRadius: 1,
+                    spreadRadius: 1,
+                  ),
+                ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -99,12 +104,9 @@ class NotificationCard extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 6, right: 12),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: notification.isRead 
-                        ? null 
-                        : AppColors.accentGradient,
-                    color: notification.isRead 
-                        ? Colors.grey.shade300 
-                        : null,
+                    gradient:
+                        notification.isRead ? null : AppColors.accentGradient,
+                    color: notification.isRead ? Colors.grey.shade300 : null,
                   ),
                 ),
                 _buildNotificationContent(timeString),
@@ -128,9 +130,10 @@ class NotificationCard extends StatelessWidget {
                 child: Text(
                   notification.title,
                   style: AppFonts.listItemTitle.copyWith(
-                    fontWeight: notification.isRead 
-                        ? AppFonts.medium 
-                        : AppFonts.semiBold,
+                    fontWeight:
+                        notification.isRead
+                            ? AppFonts.medium
+                            : AppFonts.semiBold,
                     fontSize: AppFonts.bodyLarge,
                     color: AppColors.textPrimary,
                   ),
@@ -147,15 +150,16 @@ class NotificationCard extends StatelessWidget {
             style: AppFonts.listItemSubtitle.copyWith(
               fontSize: AppFonts.bodyMedium,
               height: AppFonts.lineHeightRelaxed,
-              color: notification.isRead 
-                  ? AppColors.textTertiary 
-                  : AppColors.textSecondary,
+              color:
+                  notification.isRead
+                      ? AppColors.textTertiary
+                      : AppColors.textSecondary,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
-          
+
           // Show group or notification metadata
           Row(
             children: [
@@ -185,11 +189,7 @@ class NotificationCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.tag,
-            size: 12,
-            color: AppColors.primary,
-          ),
+          Icon(Icons.campaign, size: 12, color: AppColors.primary),
           const SizedBox(width: 4),
           Text(
             groupName,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:push_bunnny/auth_service.dart';
 import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
@@ -54,117 +55,130 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Image.asset('assets/iconWhite.png', height: 24, width: 24),
-            const SizedBox(width: 5),
+      appBar: _buildAppBar(),
+      body: Container(
+        color: AppColors.background,
+        child: isLoading ? _buildLoadingWidget() : _buildLayoutWithFilter(),
+      ),
+    );
+  }
 
-            Text(
-              'Push Bunny',
-              style: AppFonts.appBarTitle.copyWith(
-                fontSize: 18,
-                letterSpacing: 0.2,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.secondary, AppColors.primary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        elevation: 0,
-        centerTitle: false,
-        actions: [
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(builder: (context) => SettingsScreen()),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 15,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, color: AppColors.primary),
-                ),
-              ),
+  AppBar _buildAppBar() {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      title: Row(
+        children: [
+          Image.asset('assets/iconWhite.png', height: 24, width: 24),
+          const SizedBox(width: 5),
+          Text(
+            'Push Bunny',
+            style: AppFonts.appBarTitle.copyWith(
+              fontSize: 18,
+              letterSpacing: 0.2,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
-
-      body: Container(
-        color: AppColors.background,
-        child:
-            isLoading
-                ? _buildLoadingWidget()
-                : Column(
-                  children: [
-                    // Optionally show group filter dropdown
-                    _buildGroupFilterSection(),
-                    // Replace the existing StreamBuilder section in NotificationHistoryScreen
-                    Expanded(
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream:
-                            selectedGroupId != null
-                                ? notificationService.getGroupNotifications(
-                                  selectedGroupId!,
-                                )
-                                : notificationService.getUserNotifications(),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            debugPrint('Stream error: ${snapshot.error}');
-                            // Check for Firestore index error
-                            String errorMsg = snapshot.error.toString();
-                            if (errorMsg.contains('index') ||
-                                errorMsg.contains('Index')) {
-                              return _buildErrorWidget(
-                                'This filter requires a Firestore index. Please check Firebase console or reset the filter.',
-                              );
-                            }
-                            return _buildErrorWidget();
-                          }
-
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return _buildLoadingWidget();
-                          }
-
-                          final notifications = snapshot.data?.docs ?? [];
-                          if (notifications.isEmpty) return _buildEmptyWidget();
-
-                          return _buildNotificationList(
-                            context,
-                            notifications,
-                            dateFormat,
-                            notificationService,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.secondary, AppColors.primary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
       ),
+      elevation: 0,
+      centerTitle: false,
+      actions: [
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              PageTransition(
+                type: PageTransitionType.fade,
+                child: const SettingsScreen(),
+                duration: const Duration(milliseconds: 80),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 15,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.settings, color: AppColors.primary),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLayoutWithFilter() {
+    return Column(
+      children: [
+        _buildGroupFilterSection(),
+        Expanded(child: _buildNotificationList()),
+      ],
+    );
+  }
+
+  Widget _buildNotificationList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream:
+          selectedGroupId != null
+              ? notificationService.getGroupNotifications(selectedGroupId!)
+              : notificationService.getUserNotifications(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          debugPrint('Stream error: ${snapshot.error}');
+          String errorMsg = snapshot.error.toString();
+          if (errorMsg.contains('index') || errorMsg.contains('Index')) {
+            return _buildErrorWidget(
+              'This filter requires a Firestore index. Please check Firebase console or reset the filter.',
+            );
+          }
+          return _buildErrorWidget();
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingWidget();
+        }
+
+        final notifications = snapshot.data?.docs ?? [];
+        if (notifications.isEmpty) return _buildEmptyWidget();
+
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(0, 8, 0, 26),
+          itemCount: notifications.length,
+          itemBuilder: (context, index) {
+            final doc = notifications[index];
+            final notification = NotificationModel.fromFirestore(doc);
+
+            return NotificationCard(
+              notification: notification,
+              dateFormat: dateFormat,
+              onDelete:
+                  () => _handleDelete(context, doc.id, notificationService),
+              onTap: () => _showDetailsSheet(context, notification),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -180,7 +194,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
               .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const SizedBox.shrink(); // Don't show filter if no subscriptions
+          return const SizedBox.shrink();
         }
 
         final docs = snapshot.data!.docs;
@@ -191,7 +205,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             boxShadow: [
               BoxShadow(
                 color: Colors.grey.shade200,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
                 blurRadius: 4,
                 spreadRadius: 0,
               ),
@@ -200,7 +214,6 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title for the filter section
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
                 child: Text(
@@ -211,9 +224,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                   ),
                 ),
               ),
-
-              // Scrollable filter chips
-              Container(
+              SizedBox(
                 height: 50,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
@@ -229,8 +240,6 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                         });
                       },
                     ),
-
-                    // Group filter options
                     ...docs.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       final String groupId = doc.id;
@@ -283,7 +292,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                     BoxShadow(
                       color: AppColors.primary.withOpacity(0.2),
                       blurRadius: 4,
-                      offset: Offset(0, 2),
+                      offset: const Offset(0, 2),
                     ),
                   ]
                   : null,
@@ -307,29 +316,6 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildNotificationList(
-    BuildContext context,
-    List<QueryDocumentSnapshot> notifications,
-    DateFormat dateFormat,
-    NotificationService notificationService,
-  ) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-      itemCount: notifications.length,
-      itemBuilder: (context, index) {
-        final doc = notifications[index];
-        final notification = NotificationModel.fromFirestore(doc);
-
-        return NotificationCard(
-          notification: notification,
-          dateFormat: dateFormat,
-          onDelete: () => _handleDelete(context, doc.id, notificationService),
-          onTap: () => _showDetailsSheet(context, notification),
-        );
-      },
     );
   }
 
@@ -419,7 +405,6 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
     );
   }
 
-  // Replace the _buildErrorWidget method in your NotificationHistoryScreen
   Widget _buildErrorWidget([String? errorMessage]) {
     return Center(
       child: Column(
@@ -457,7 +442,6 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           TextButton(
             onPressed: () {
               setState(() {
-                // Reset group filter and reload
                 selectedGroupId = null;
                 _loadUserId();
               });
@@ -477,7 +461,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   }
 
   Widget _buildLoadingWidget() {
-    return Center(
+    return const Center(
       child: CircularProgressIndicator(
         valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
         strokeWidth: 2.5,
