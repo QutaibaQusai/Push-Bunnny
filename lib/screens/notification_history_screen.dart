@@ -122,8 +122,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                   children: [
                     // Optionally show group filter dropdown
                     _buildGroupFilterSection(),
-
-                    // Notification list
+                    // Replace the existing StreamBuilder section in NotificationHistoryScreen
                     Expanded(
                       child: StreamBuilder<QuerySnapshot>(
                         stream:
@@ -133,7 +132,19 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                                 )
                                 : notificationService.getUserNotifications(),
                         builder: (context, snapshot) {
-                          if (snapshot.hasError) return _buildErrorWidget();
+                          if (snapshot.hasError) {
+                            debugPrint('Stream error: ${snapshot.error}');
+                            // Check for Firestore index error
+                            String errorMsg = snapshot.error.toString();
+                            if (errorMsg.contains('index') ||
+                                errorMsg.contains('Index')) {
+                              return _buildErrorWidget(
+                                'This filter requires a Firestore index. Please check Firebase console or reset the filter.',
+                              );
+                            }
+                            return _buildErrorWidget();
+                          }
+
                           if (snapshot.connectionState ==
                               ConnectionState.waiting) {
                             return _buildLoadingWidget();
@@ -408,7 +419,8 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
     );
   }
 
-  Widget _buildErrorWidget() {
+  // Replace the _buildErrorWidget method in your NotificationHistoryScreen
+  Widget _buildErrorWidget([String? errorMessage]) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -416,22 +428,42 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           Icon(Icons.error_outline, size: 40, color: Colors.grey.shade600),
           const SizedBox(height: 12),
           Text(
-            'Unable to load messages',
+            errorMessage ?? 'Unable to load messages',
             style: AppFonts.listItemSubtitle.copyWith(
               fontSize: 16,
               color: Colors.grey.shade700,
             ),
           ),
           const SizedBox(height: 8),
+          if (errorMessage != null && errorMessage.contains("index")) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Text(
+                "Index error detected. You may need to create a composite index in Firestore for this query to work.",
+                style: AppFonts.cardSubtitle.copyWith(
+                  color: Colors.orange.shade800,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           TextButton(
             onPressed: () {
               setState(() {
-                // Refresh the state to trigger a rebuild
+                // Reset group filter and reload
+                selectedGroupId = null;
                 _loadUserId();
               });
             },
             child: Text(
-              'RETRY',
+              'RESET FILTER',
               style: AppFonts.listItemSubtitle.copyWith(
                 color: AppColors.secondary,
                 fontWeight: FontWeight.w500,

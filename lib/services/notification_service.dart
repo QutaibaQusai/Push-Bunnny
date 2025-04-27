@@ -10,29 +10,22 @@ class NotificationService {
   Future<String> get _userId async => await _authService.getUserId();
 
   // Get all notifications for the current user
-  // Stream<QuerySnapshot> getUserNotifications() async* {
-  //   final userId = await _userId;
-  //   yield* _firestore
-  //       .collection('notifications')
-  //       .where('userId', isEqualTo: userId)
-  //       .orderBy('timestamp', descending: true)
-  //       .snapshots();
-  // }
   Stream<QuerySnapshot> getUserNotifications() async* {
     final userId = await _userId;
     debugPrint(
       'Getting notifications for user: ${userId.length > 10 ? userId.substring(0, 10) + '...' : userId}',
     );
-    // Simple query first - just get all notifications without filters to test
     yield* _firestore
         .collection('notifications')
         .where('userId', isEqualTo: userId)
+        .orderBy('timestamp', descending: true)
         .snapshots();
   }
 
   // Get notifications for a specific group
   Stream<QuerySnapshot> getGroupNotifications(String groupId) async* {
     final userId = await _userId;
+    debugPrint('Getting notifications for group: $groupId');
     yield* _firestore
         .collection('notifications')
         .where('userId', isEqualTo: userId)
