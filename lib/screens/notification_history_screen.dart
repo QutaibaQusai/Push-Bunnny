@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:push_bunnny/auth_service.dart';
 import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
 import 'package:push_bunnny/models/notification_model.dart';
@@ -20,7 +21,35 @@ class NotificationHistoryScreen extends StatefulWidget {
 class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   final dateFormat = DateFormat('HH:mm');
   final NotificationService notificationService = NotificationService();
+  final AuthService authService = AuthService();
   String? selectedGroupId;
+  String? userId;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    try {
+      final id = await authService.getUserId();
+      if (mounted) {
+        setState(() {
+          userId = id;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+      debugPrint('Error loading user ID: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,51 +115,56 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
 
       body: Container(
         color: AppColors.background,
-        child: Column(
-          children: [
-            // Optionally show group filter dropdown
-            _buildGroupFilterSection(),
+        child:
+            isLoading
+                ? _buildLoadingWidget()
+                : Column(
+                  children: [
+                    // Optionally show group filter dropdown
+                    _buildGroupFilterSection(),
 
-            // Notification list
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream:
-                    selectedGroupId != null
-                        ? notificationService.getGroupNotifications(
-                          selectedGroupId!,
-                        )
-                        : notificationService.getUserNotifications(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) return _buildErrorWidget();
-                  if (snapshot.connectionState == ConnectionState.waiting)
-                    return _buildLoadingWidget();
+                    // Notification list
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream:
+                            selectedGroupId != null
+                                ? notificationService.getGroupNotifications(
+                                  selectedGroupId!,
+                                )
+                                : notificationService.getUserNotifications(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) return _buildErrorWidget();
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return _buildLoadingWidget();
+                          }
 
-                  final notifications = snapshot.data?.docs ?? [];
-                  if (notifications.isEmpty) return _buildEmptyWidget();
+                          final notifications = snapshot.data?.docs ?? [];
+                          if (notifications.isEmpty) return _buildEmptyWidget();
 
-                  return _buildNotificationList(
-                    context,
-                    notifications,
-                    dateFormat,
-                    notificationService,
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+                          return _buildNotificationList(
+                            context,
+                            notifications,
+                            dateFormat,
+                            notificationService,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
       ),
     );
   }
 
   Widget _buildGroupFilterSection() {
+    if (userId == null) return const SizedBox.shrink();
+
     return StreamBuilder<QuerySnapshot>(
       stream:
           FirebaseFirestore.instance
               .collection('users')
-              .doc(
-                'anonymous',
-              ) // Replace with actual user ID when authentication is implemented
+              .doc(userId)
               .collection('subscriptions')
               .snapshots(),
       builder: (context, snapshot) {
@@ -138,56 +172,130 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           return const SizedBox.shrink(); // Don't show filter if no subscriptions
         }
 
-        // Add "All notifications" option
-        List<DropdownMenuItem<String?>> items = [
-          const DropdownMenuItem<String?>(
-            value: null,
-            child: Text('All notifications'),
-          ),
-        ];
-
-        // Add each group as a dropdown option
-        for (var doc in snapshot.data!.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final String groupId = doc.id;
-          final String groupName = data['groupName'] ?? 'Unnamed Group';
-
-          items.add(
-            DropdownMenuItem<String?>(value: groupId, child: Text(groupName)),
-          );
-        }
+        final docs = snapshot.data!.docs;
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.white,
-          child: Row(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade200,
+                offset: Offset(0, 2),
+                blurRadius: 4,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Filter by: ',
-                style: AppFonts.cardTitle.copyWith(
-                  color: AppColors.textSecondary,
+              // Title for the filter section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                child: Text(
+                  'Filter Messages',
+                  style: AppFonts.cardTitle.copyWith(
+                    fontSize: AppFonts.bodyMedium,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
-              Expanded(
-                child: DropdownButton<String?>(
-                  value: selectedGroupId,
-                  isExpanded: true,
-                  underline: Container(
-                    height: 1,
-                    color: AppColors.primary.withOpacity(0.3),
-                  ),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedGroupId = newValue;
-                    });
-                  },
-                  items: items,
+
+              // Scrollable filter chips
+              Container(
+                height: 50,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  children: [
+                    _buildFilterChip(
+                      label: 'All Messages',
+                      icon: Icons.all_inbox,
+                      isSelected: selectedGroupId == null,
+                      onTap: () {
+                        setState(() {
+                          selectedGroupId = null;
+                        });
+                      },
+                    ),
+
+                    // Group filter options
+                    ...docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final String groupId = doc.id;
+                      final String groupName =
+                          data['groupName'] ?? 'Unnamed Group';
+
+                      return _buildFilterChip(
+                        label: groupName,
+                        icon: Icons.group,
+                        isSelected: selectedGroupId == groupId,
+                        onTap: () {
+                          setState(() {
+                            selectedGroupId = groupId;
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ],
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: isSelected ? AppColors.accentGradient : null,
+          color: isSelected ? null : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : Colors.grey.shade300,
+            width: 1,
+          ),
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ]
+                  : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.white : AppColors.textTertiary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppFonts.listItemSubtitle.copyWith(
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -319,6 +427,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             onPressed: () {
               setState(() {
                 // Refresh the state to trigger a rebuild
+                _loadUserId();
               });
             },
             child: Text(

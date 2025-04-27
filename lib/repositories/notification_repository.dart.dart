@@ -1,10 +1,10 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:push_bunnny/auth_service.dart';
 import 'package:push_bunnny/screens/notification_history_screen.dart';
-import '../main.dart'; 
+import '../main.dart';
 
 // Notification channel definition (accessible at top level)
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -20,14 +20,17 @@ Future<void> saveNotificationToFirestore(
   String appState,
 ) async {
   try {
-    final user = FirebaseAuth.instance.currentUser;
+    // Get user ID from AuthService (now using FCM token as ID)
+    final authService = AuthService();
+    final userId = await authService.getUserId();
+
     await FirebaseFirestore.instance.collection('notifications').add({
       'title': message.notification?.title ?? 'No title',
       'body': message.notification?.body ?? 'No body',
       'imageUrl': message.notification?.android?.imageUrl,
       'link': message.data['link'],
       'timestamp': FieldValue.serverTimestamp(),
-      'userId': user?.uid ?? 'anonymous',
+      'userId': userId,
       'appState': appState,
       // Add group information if available
       'groupId': message.data['groupId'],
@@ -42,6 +45,7 @@ class NotificationRepository {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  final AuthService _authService = AuthService();
   String? _currentFcmToken;
 
   Future<void> initialize() async {
@@ -109,9 +113,50 @@ class NotificationRepository {
   }
 
   void _setupTokenRefreshListener() {
-    _firebaseMessaging.onTokenRefresh.listen((newToken) {
+    _firebaseMessaging.onTokenRefresh.listen((newToken) async {
       debugPrint('FCM Token Refreshed: $newToken');
       _currentFcmToken = newToken;
+
+      // Update user ID when token refreshes
+      final oldToken = await _authService.getUserId();
+
+      // Update all notifications with the old token to use the new token
+      try {
+        final notificationsSnapshot =
+            await FirebaseFirestore.instance
+                .collection('notifications')
+                .where('userId', isEqualTo: oldToken)
+                .get();
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in notificationsSnapshot.docs) {
+          batch.update(doc.reference, {'userId': newToken});
+        }
+
+        // Also update subscriptions
+        final subscriptionsSnapshot =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(oldToken)
+                .collection('subscriptions')
+                .get();
+
+        // Copy subscriptions to the new user ID
+        for (var doc in subscriptionsSnapshot.docs) {
+          final data = doc.data();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(newToken)
+              .collection('subscriptions')
+              .doc(doc.id)
+              .set(data);
+        }
+
+        await batch.commit();
+        debugPrint('Updated user ID references from $oldToken to $newToken');
+      } catch (e) {
+        debugPrint('Error updating user references: $e');
+      }
     });
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:push_bunnny/auth_service.dart';
 import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,32 +22,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool isTokenCopied = false;
   bool notificationsEnabled = true;
   final GroupSubscriptionService _groupService = GroupSubscriptionService();
+  final AuthService _authService = AuthService();
+  String? userId;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadDeviceToken();
-    _checkNotificationStatus();
+    _initializeData();
   }
 
-  void _loadDeviceToken() async {
-    String? token = await FirebaseMessaging.instance.getToken();
+  Future<void> _initializeData() async {
+    setState(() {
+      isLoading = true;
+    });
+    
+    await _loadDeviceToken();
+    await _loadUserId();
+    await _checkNotificationStatus();
+    
     if (mounted) {
       setState(() {
-        deviceToken = token;
+        isLoading = false;
       });
     }
   }
 
-  void _checkNotificationStatus() async {
-    final settings = await FirebaseMessaging.instance.getNotificationSettings();
-    if (mounted) {
-      setState(() {
-        notificationsEnabled = settings.authorizationStatus == AuthorizationStatus.authorized;
-      });
+  Future<void> _loadUserId() async {
+    try {
+      final id = await _authService.getUserId();
+      if (mounted) {
+        setState(() {
+          userId = id;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user ID: $e');
     }
   }
+Future<void> _loadDeviceToken() async {
+  String? token = await FirebaseMessaging.instance.getToken();
+  if (mounted) {
+    setState(() {
+      deviceToken = token;
+    });
+  }
+}
 
+Future<void> _checkNotificationStatus() async {
+  final settings = await FirebaseMessaging.instance.getNotificationSettings();
+  if (mounted) {
+    setState(() {
+      notificationsEnabled = settings.authorizationStatus == AuthorizationStatus.authorized;
+    });
+  }
+}
   void _handleToggle(bool value) async {
     setState(() {
       notificationsEnabled = value;
@@ -200,6 +230,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Add this widget to include in your build method:
   Widget _buildGroupSubscriptionSection() {
+    if (userId == null) {
+      return Center(child: CircularProgressIndicator());
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -373,55 +407,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 1,
         centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('Device Settings'),
-            _buildTokenCard(),
-            const SizedBox(height: 16),
-            _buildSectionTitle('Notification Settings'),
-            _buildSettingCard(
-              'Enable Notifications',
-              'Receive push notifications from Push Bunny',
-              Icons.notifications_outlined,
-              isToggle: true,
-              initialToggleValue: notificationsEnabled,
-              onToggleChanged: _handleToggle,
-            ),
-            const SizedBox(height: 16),
-            _buildGroupSubscriptionSection(),
+      body: isLoading 
+          ? Center(child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+            ))
+          : SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle('Device Settings'),
+                  _buildTokenCard(),
+                  const SizedBox(height: 16),
+                  _buildSectionTitle('Notification Settings'),
+                  _buildSettingCard(
+                    'Enable Notifications',
+                    'Receive push notifications from Push Bunny',
+                    Icons.notifications_outlined,
+                    isToggle: true,
+                    initialToggleValue: notificationsEnabled,
+                    onToggleChanged: _handleToggle,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildGroupSubscriptionSection(),
 
-            _buildSectionTitle('About Push Bunny'),
-            _buildSettingCard(
-              'About',
-              'App version and information',
-              Icons.info_outline,
-              onTap: () {
-                showAboutDialog(
-                  context: context,
-                  applicationName: 'Push Bunny',
-                  applicationVersion: '1.0.0',
-                  applicationIcon: Image.asset('assets/iconWhite.png', height: 50, width: 50),
-                  applicationLegalese: '© 2025 Push Bunny',
-                );
-              },
+                  _buildSectionTitle('About Push Bunny'),
+                  _buildSettingCard(
+                    'About',
+                    'App version and information',
+                    Icons.info_outline,
+                    onTap: () {
+                      showAboutDialog(
+                        context: context,
+                        applicationName: 'Push Bunny',
+                        applicationVersion: '1.0.0',
+                        applicationIcon: Image.asset('assets/iconWhite.png', height: 50, width: 50),
+                        applicationLegalese: '© 2025 Push Bunny',
+                      );
+                    },
+                  ),
+                  
+                  // Add logout or clear data section if needed
+                  _buildSectionTitle('Data Management'),
+                  _buildSettingCard(
+                    'Clear Notification History',
+                    'Delete all notification history from this device',
+                    Icons.delete_outline,
+                    onTap: () {
+                      // Show confirmation dialog and clear notifications
+                      _showClearHistoryDialog();
+                    },
+                  ),
+                ],
+              ),
             ),
-            
-            // Add logout or clear data section if needed
-            _buildSectionTitle('Data Management'),
-            _buildSettingCard(
-              'Clear Notification History',
-              'Delete all notification history from this device',
-              Icons.delete_outline,
-              onTap: () {
-                // Show confirmation dialog and clear notifications
-                _showClearHistoryDialog();
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
   
@@ -452,11 +490,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     if (confirm) {
       try {
+        // Get the current user ID
+        final String currentUserId = await _authService.getUserId();
+        
         // Delete all notifications for the current user
-        final userId = 'anonymous'; // Replace with actual user ID when authentication is implemented
         final notifications = await FirebaseFirestore.instance
             .collection('notifications')
-            .where('userId', isEqualTo: userId)
+            .where('userId', isEqualTo: currentUserId)
             .get();
             
         // Delete in batches
@@ -495,10 +535,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildTokenCard() {
+    String displayToken = deviceToken ?? 'Fetching token...';
+    
+    // If the token is the same as the user ID, highlight this information
+    bool isUserIdentifier = userId != null && deviceToken != null && userId == deviceToken;
+
     return Container(
       decoration: BoxDecoration(
         gradient: AppColors.subtleGradient,
-        borderRadius: BorderRadius.circular(12), // More rounded corners
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow.withOpacity(0.25),
@@ -508,9 +553,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-      ), // Slight margin for shadow visibility
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
@@ -518,7 +561,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onTap: _copyTokenToClipboard,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(18), // Slightly more padding
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -598,6 +641,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                
+                // Show token
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -618,7 +663,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                   child: Text(
-                    deviceToken ?? 'Fetching token...',
+                    displayToken,
                     style: AppFonts.monospace.copyWith(
                       height: 1.4,
                       color: AppColors.textPrimary.withOpacity(0.85),
@@ -627,6 +672,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                
+                // Show user ID info if needed
+                if (isUserIdentifier) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: AppColors.success.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 12,
+                          color: AppColors.success,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Used as your device identifier',
+                          style: AppFonts.tokenHint.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                
                 const SizedBox(height: 10),
                 Row(
                   children: [

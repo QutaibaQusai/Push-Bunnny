@@ -1,15 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:push_bunnny/auth_service.dart';
 
 class GroupSubscriptionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final AuthService _authService = AuthService();
 
-  // Get current user ID or use anonymous if not logged in
-  String get _userId => _auth.currentUser?.uid ?? 'anonymous';
+  // Get current user ID (now using FCM token)
+  Future<String> get _userId async => await _authService.getUserId();
 
   // Get all groups
   Stream<QuerySnapshot> getAllGroups() {
@@ -17,10 +17,11 @@ class GroupSubscriptionService {
   }
 
   // Get groups the user is subscribed to
-  Stream<QuerySnapshot> getUserSubscribedGroups() {
-    return _firestore
+  Stream<QuerySnapshot> getUserSubscribedGroups() async* {
+    final userId = await _userId;
+    yield* _firestore
         .collection('users')
-        .doc(_userId)
+        .doc(userId)
         .collection('subscriptions')
         .orderBy('subscribedAt', descending: true)
         .snapshots();
@@ -36,11 +37,12 @@ class GroupSubscriptionService {
   Future<void> createGroup(String groupId, String groupName) async {
     // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
     String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
+    final userId = await _userId;
     
     await _firestore.collection('groups').doc(sanitizedGroupId).set({
       'name': groupName,
       'createdAt': FieldValue.serverTimestamp(),
-      'createdBy': _userId,
+      'createdBy': userId,
       'memberCount': 1,
     });
   }
@@ -50,6 +52,7 @@ class GroupSubscriptionService {
     try {
       // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
       String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
+      final userId = await _userId;
       
       // Check if group exists, if not create it
       bool exists = await groupExists(sanitizedGroupId);
@@ -69,7 +72,7 @@ class GroupSubscriptionService {
       // Save subscription in user's data
       await _firestore
           .collection('users')
-          .doc(_userId)
+          .doc(userId)
           .collection('subscriptions')
           .doc(sanitizedGroupId)
           .set({
@@ -85,9 +88,9 @@ class GroupSubscriptionService {
             .collection('groups')
             .doc(sanitizedGroupId)
             .collection('members')
-            .doc(_userId)
+            .doc(userId)
             .set({
-              'userId': _userId,
+              'userId': userId,
               'fcmToken': token,
               'joinedAt': FieldValue.serverTimestamp(),
             });
@@ -103,6 +106,7 @@ class GroupSubscriptionService {
     try {
       // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
       String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
+      final userId = await _userId;
       
       // Unsubscribe from Firebase topic
       await _messaging.unsubscribeFromTopic(sanitizedGroupId);
@@ -111,7 +115,7 @@ class GroupSubscriptionService {
       // Remove from user's subscriptions
       await _firestore
           .collection('users')
-          .doc(_userId)
+          .doc(userId)
           .collection('subscriptions')
           .doc(sanitizedGroupId)
           .delete();
@@ -121,7 +125,7 @@ class GroupSubscriptionService {
           .collection('groups')
           .doc(sanitizedGroupId)
           .collection('members')
-          .doc(_userId)
+          .doc(userId)
           .delete();
           
       await _firestore
@@ -140,11 +144,12 @@ class GroupSubscriptionService {
   Future<bool> isSubscribedToGroup(String groupId) async {
     // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
     String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
+    final userId = await _userId;
     
     final doc =
         await _firestore
             .collection('users')
-            .doc(_userId)
+            .doc(userId)
             .collection('subscriptions')
             .doc(sanitizedGroupId)
             .get();
