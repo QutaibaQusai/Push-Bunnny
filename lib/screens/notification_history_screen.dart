@@ -13,20 +13,24 @@ class NotificationHistoryScreen extends StatefulWidget {
   const NotificationHistoryScreen({super.key});
 
   @override
-  State<NotificationHistoryScreen> createState() => _NotificationHistoryScreenState();
+  State<NotificationHistoryScreen> createState() =>
+      _NotificationHistoryScreenState();
 }
 
 class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   final dateFormat = DateFormat('HH:mm');
   final NotificationService notificationService = NotificationService();
   String? selectedGroupId;
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
+            Image.asset('assets/iconWhite.png', height: 24, width: 24),
+            const SizedBox(width: 5),
+
             Text(
               'Push Bunny',
               style: AppFonts.appBarTitle.copyWith(
@@ -35,8 +39,6 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 5),
-            Image.asset('assets/iconWhite.png', height: 24, width: 24),
           ],
         ),
         flexibleSpace: Container(
@@ -81,20 +83,23 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           ),
         ],
       ),
-      
+
       body: Container(
         color: AppColors.background,
         child: Column(
           children: [
             // Optionally show group filter dropdown
             _buildGroupFilterSection(),
-            
+
             // Notification list
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: selectedGroupId != null 
-                    ? notificationService.getGroupNotifications(selectedGroupId!)
-                    : notificationService.getUserNotifications(),
+                stream:
+                    selectedGroupId != null
+                        ? notificationService.getGroupNotifications(
+                          selectedGroupId!,
+                        )
+                        : notificationService.getUserNotifications(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) return _buildErrorWidget();
                   if (snapshot.connectionState == ConnectionState.waiting)
@@ -120,16 +125,19 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
 
   Widget _buildGroupFilterSection() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc('anonymous') // Replace with actual user ID when authentication is implemented
-          .collection('subscriptions')
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(
+                'anonymous',
+              ) // Replace with actual user ID when authentication is implemented
+              .collection('subscriptions')
+              .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const SizedBox.shrink(); // Don't show filter if no subscriptions
         }
-        
+
         // Add "All notifications" option
         List<DropdownMenuItem<String?>> items = [
           const DropdownMenuItem<String?>(
@@ -137,19 +145,18 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             child: Text('All notifications'),
           ),
         ];
-        
+
         // Add each group as a dropdown option
         for (var doc in snapshot.data!.docs) {
           final data = doc.data() as Map<String, dynamic>;
           final String groupId = doc.id;
           final String groupName = data['groupName'] ?? 'Unnamed Group';
-          
-          items.add(DropdownMenuItem<String?>(
-            value: groupId,
-            child: Text(groupName),
-          ));
+
+          items.add(
+            DropdownMenuItem<String?>(value: groupId, child: Text(groupName)),
+          );
         }
-        
+
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           color: Colors.white,
@@ -238,9 +245,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                 ),
                 content: Text(
                   'This message will be removed from this device',
-                  style: AppFonts.listItemSubtitle.copyWith(
-                    fontSize: 15,
-                  ),
+                  style: AppFonts.listItemSubtitle.copyWith(fontSize: 15),
                 ),
                 actions: [
                   TextButton(
@@ -273,9 +278,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
         SnackBar(
           content: Text(
             'Message deleted',
-            style: AppFonts.listItemSubtitle.copyWith(
-              fontSize: 14,
-            ),
+            style: AppFonts.listItemSubtitle.copyWith(fontSize: 14),
           ),
           backgroundColor: Colors.black87,
           behavior: SnackBarBehavior.floating,
