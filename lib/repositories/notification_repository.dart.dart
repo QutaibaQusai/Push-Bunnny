@@ -19,9 +19,12 @@ Future<void> saveNotificationToFirestore(
   String appState,
 ) async {
   try {
-    // Get user ID from AuthService (now using FCM token as ID)
+    // Get user ID from AuthService (now using persistent UUID)
     final authService = AuthService();
     final userId = await authService.getUserId();
+    
+    // Get FCM token for device identification
+    final fcmToken = await FirebaseMessaging.instance.getToken();
 
     // Extract group information from the message
     String? groupId;
@@ -49,7 +52,8 @@ Future<void> saveNotificationToFirestore(
       'imageUrl': message.notification?.android?.imageUrl,
       'link': message.data['link'],
       'timestamp': FieldValue.serverTimestamp(),
-      'userId': userId,
+      'userId': userId, // Using the persistent UUID
+      'fcmToken': fcmToken, // Store the FCM token as a separate field
       'appState': appState,
 
       // Add topic/from information
@@ -143,47 +147,6 @@ class NotificationRepository {
     _firebaseMessaging.onTokenRefresh.listen((newToken) async {
       debugPrint('FCM Token Refreshed: $newToken');
       _currentFcmToken = newToken;
-
-      // Update user ID when token refreshes
-      final oldToken = await _authService.getUserId();
-
-      // Update all notifications with the old token to use the new token
-      try {
-        final notificationsSnapshot =
-            await FirebaseFirestore.instance
-                .collection('notifications')
-                .where('userId', isEqualTo: oldToken)
-                .get();
-
-        final batch = FirebaseFirestore.instance.batch();
-        for (var doc in notificationsSnapshot.docs) {
-          batch.update(doc.reference, {'userId': newToken});
-        }
-
-        // Also update subscriptions
-        final subscriptionsSnapshot =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(oldToken)
-                .collection('subscriptions')
-                .get();
-
-        // Copy subscriptions to the new user ID
-        for (var doc in subscriptionsSnapshot.docs) {
-          final data = doc.data();
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(newToken)
-              .collection('subscriptions')
-              .doc(doc.id)
-              .set(data);
-        }
-
-        await batch.commit();
-        debugPrint('Updated user ID references from $oldToken to $newToken');
-      } catch (e) {
-        debugPrint('Error updating user references: $e');
-      }
     });
   }
 

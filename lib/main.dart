@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:push_bunnny/auth_service.dart';
+import 'package:push_bunnny/migration_helper.dart';
 import 'package:push_bunnny/repositories/notification_repository.dart.dart';
 import 'package:push_bunnny/screens/notification_history_screen.dart';
 import 'firebase_options.dart';
@@ -27,8 +28,12 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Initialize AuthService to ensure we have a user ID ready
+  // This now uses UUID and SharedPreferences for persistence
   final authService = AuthService();
-  await authService.getUserId(); // This will get or create the user ID
+  final userId = await authService.getUserId();
+  
+  // Perform migration if needed
+  await MigrationHelper.migrateUserData(userId);
 
   // Initialize notification repository
   final notificationRepository = NotificationRepository();

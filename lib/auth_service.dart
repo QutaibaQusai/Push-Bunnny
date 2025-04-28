@@ -2,11 +2,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-
+  
+  // Static UUID generator
+  static const Uuid _uuid = Uuid();
+  
+  // Key for storing user ID in SharedPreferences
+  static const String _userIdKey = 'persistent_user_id';
+  
   // Singleton pattern
   static final AuthService _instance = AuthService._internal();
 
@@ -16,66 +23,51 @@ class AuthService {
 
   AuthService._internal();
 
-  // Get current user ID, now using FCM token as the primary identifier
+  // Get current user ID, using a persistent UUID stored in SharedPreferences
   Future<String> getUserId() async {
-    // Try to use FCM token first
-    String? fcmToken = await _messaging.getToken();
-    if (fcmToken != null && fcmToken.isNotEmpty) {
-      debugPrint('Using FCM token as user ID: ${fcmToken.substring(0, 10)}...');
-      
-      // Store the token in SharedPreferences for persistence
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_id', fcmToken);
-      
-      return fcmToken;
+    // First, try to get the UUID from SharedPreferences
+    final persistentId = await _getPersistentUserId();
+    if (persistentId != null) {
+      debugPrint('Using persistent UUID as user ID: ${persistentId.substring(0, 10)}...');
+      return persistentId;
     }
-
-    // If we already have a signed-in user, use that
-    if (_auth.currentUser != null) {
-      return _auth.currentUser!.uid;
-    }
-
-    // Try to retrieve previously stored user ID from SharedPreferences
-    final storedId = await _getStoredUserId();
-    if (storedId != null) {
-      return storedId;
-    }
-
-    // As a last resort, generate and store a device-specific ID
-    return _generateDeviceId();
+    
+    // If no persistent ID exists, generate a new one and store it
+    final newUuid = _generateAndStorePersistentUserId();
+    return newUuid;
   }
 
-  // Retrieve previously stored user ID
-  Future<String?> _getStoredUserId() async {
+  // Retrieve previously stored persistent user ID
+  Future<String?> _getPersistentUserId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      String? userId = prefs.getString('user_id');
+      String? userId = prefs.getString(_userIdKey);
       
       if (userId != null && userId.isNotEmpty) {
-        debugPrint('Retrieved stored user ID: ${userId.substring(0, 10)}...');
+        debugPrint('Retrieved persistent user ID: ${userId.substring(0, 10)}...');
         return userId;
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting stored user ID: $e');
+      debugPrint('Error getting persistent user ID: $e');
       return null;
     }
   }
 
-  // Generate a unique device ID as a fallback
-  Future<String> _generateDeviceId() async {
+  // Generate a new UUID and store it in SharedPreferences
+  Future<String> _generateAndStorePersistentUserId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      String deviceId = DateTime.now().millisecondsSinceEpoch.toString() +
-          '_${UniqueKey().toString()}';
+      final String newUserId = _uuid.v4(); // Generate a UUID v4
       
-      await prefs.setString('user_id', deviceId);
-      debugPrint('Generated new device ID: ${deviceId.substring(0, 10)}...');
-      return deviceId;
+      await prefs.setString(_userIdKey, newUserId);
+      debugPrint('Generated new persistent user ID: ${newUserId.substring(0, 10)}...');
+      return newUserId;
     } catch (e) {
       // Last resort fallback
-      debugPrint('Error generating device ID: $e');
-      return 'device_${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint('Error generating persistent user ID: $e');
+      final fallbackId = 'device_${DateTime.now().millisecondsSinceEpoch}';
+      return fallbackId;
     }
   }
 

@@ -8,7 +8,7 @@ class GroupSubscriptionService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final AuthService _authService = AuthService();
 
-  // Get current user ID (now using FCM token)
+  // Get current user ID (now using persistent UUID)
   Future<String> get _userId async => await _authService.getUserId();
 
   // Get all groups
@@ -38,7 +38,7 @@ class GroupSubscriptionService {
     // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
     String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
     final userId = await _userId;
-    
+
     await _firestore.collection('groups').doc(sanitizedGroupId).set({
       'name': groupName,
       'createdAt': FieldValue.serverTimestamp(),
@@ -53,7 +53,8 @@ class GroupSubscriptionService {
       // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
       String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
       final userId = await _userId;
-      
+      final fcmToken = await _messaging.getToken();
+
       // Check if group exists, if not create it
       bool exists = await groupExists(sanitizedGroupId);
       if (!exists) {
@@ -77,13 +78,12 @@ class GroupSubscriptionService {
           .doc(sanitizedGroupId)
           .set({
             'groupId': sanitizedGroupId,
-            'groupName': groupName,  
+            'groupName': groupName,
             'subscribedAt': FieldValue.serverTimestamp(),
           });
-          
+
       // Also store the user's FCM token in the group members
-      String? token = await _messaging.getToken();
-      if (token != null) {
+      if (fcmToken != null) {
         await _firestore
             .collection('groups')
             .doc(sanitizedGroupId)
@@ -91,7 +91,7 @@ class GroupSubscriptionService {
             .doc(userId)
             .set({
               'userId': userId,
-              'fcmToken': token,
+              'fcmToken': fcmToken,
               'joinedAt': FieldValue.serverTimestamp(),
             });
       }
@@ -100,14 +100,14 @@ class GroupSubscriptionService {
       rethrow;
     }
   }
-  
+
   // Unsubscribe from a group
   Future<void> unsubscribeFromGroup(String groupId) async {
     try {
       // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
       String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
       final userId = await _userId;
-      
+
       // Unsubscribe from Firebase topic
       await _messaging.unsubscribeFromTopic(sanitizedGroupId);
       debugPrint('Unsubscribed from FCM topic: $sanitizedGroupId');
@@ -119,7 +119,7 @@ class GroupSubscriptionService {
           .collection('subscriptions')
           .doc(sanitizedGroupId)
           .delete();
-          
+
       // Remove user from group members and decrement count
       await _firestore
           .collection('groups')
@@ -127,13 +127,10 @@ class GroupSubscriptionService {
           .collection('members')
           .doc(userId)
           .delete();
-          
-      await _firestore
-          .collection('groups')
-          .doc(sanitizedGroupId)
-          .update({
-            'memberCount': FieldValue.increment(-1),
-          });
+
+      await _firestore.collection('groups').doc(sanitizedGroupId).update({
+        'memberCount': FieldValue.increment(-1),
+      });
     } catch (e) {
       debugPrint('Error unsubscribing from group: $e');
       rethrow;
@@ -145,7 +142,7 @@ class GroupSubscriptionService {
     // Sanitize the groupId for FCM topics (alphanumeric and underscores only)
     String sanitizedGroupId = groupId.replaceAll(RegExp(r'[^\w]'), '_');
     final userId = await _userId;
-    
+
     final doc =
         await _firestore
             .collection('users')

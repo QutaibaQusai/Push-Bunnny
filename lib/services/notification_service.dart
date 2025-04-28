@@ -6,7 +6,7 @@ class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
 
-  // Get current user ID (now using FCM token)
+  // Get current user ID (now using persistent UUID)
   Future<String> get _userId async => await _authService.getUserId();
 
   // Get all notifications for the current user
