@@ -142,7 +142,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                           _errorMessage!,
                           style: TextStyle(
                             color: Colors.red.shade700,
-                            fontSize: 13,
+                            fontSize: AppFonts.bodySmall, 
                           ),
                         ),
                       ),
@@ -170,7 +170,6 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                     style: ElevatedButton.styleFrom(
                       foregroundColor: Colors.white,
                       backgroundColor: AppColors.primary,
-
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,
@@ -191,7 +190,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                                 ),
                               ),
                             )
-                            : const Text(
+                            : Text(
                               'Subscribe',
                               style: TextStyle(fontSize: AppFonts.bodyMedium),
                             ),

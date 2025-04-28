@@ -3,15 +3,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:push_bunnny/constants/app_colors.dart';
 
 class AppFonts {
-  // Font sizes remain the same
-  static const double heading1 = 18.0;
-  static const double heading2 = 16.0;
-  static const double heading3 = 14.0;
-  static const double bodyLarge = 14.0;
-  static const double bodyMedium = 12.0;
-  static const double bodySmall = 11.0;
-  static const double caption = 10.0;
-  static const double small = 9.0;
+  // Updated font sizes (increased by about 2 pixels)
+ static const double heading1 = 21.0;
+static const double heading2 = 19.0;
+static const double heading3 = 17.0;
+static const double bodyLarge = 17.0;
+static const double bodyMedium = 15.0;
+static const double bodySmall = 14.0;
+static const double caption = 13.0;
+static const double small = 12.0;
+
 
   // Font weights remain the same
   static const FontWeight bold = FontWeight.w700;

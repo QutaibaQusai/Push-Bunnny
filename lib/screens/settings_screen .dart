@@ -23,7 +23,8 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with SingleTickerProviderStateMixin {
   String? deviceToken;
   bool isTokenCopied = false;
   bool notificationsEnabled = true;
@@ -36,9 +37,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? userId;
   bool isLoading = true;
 
+  // Animation controller for plus icon
+  late AnimationController _animationController;
+
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _initializeData();
     _checkConnectivity();
     _setupConnectivityListener();
@@ -46,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    _animationController.dispose();
     _connectivitySubscription.cancel();
     super.dispose();
   }
@@ -144,7 +153,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Token copied to clipboard', style: AppFonts.snackBar),
-          backgroundColor: Colors.black87,
+          backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(8),
           duration: const Duration(seconds: 2),
@@ -162,22 +171,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showSubscribeDialog() async {
-    final result = await showDialog<bool>(
+    // Play animation when opening dialog
+    _animationController.forward().then((_) => _animationController.reverse());
+    HapticFeedback.lightImpact();
+
+    final result = await showGeneralDialog<bool>(
       context: context,
-      builder: (context) => const GroupSubscriptionDialog(),
+      barrierDismissible: true,
+      barrierLabel: "Subscribe Dialog",
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) => const GroupSubscriptionDialog(),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+          child: FadeTransition(opacity: animation, child: child),
+        );
+      },
     );
 
-    if (result == true) {
+    if (result == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Subscribed to channel successfully',
-            style: AppFonts.snackBar,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Subscribed to channel successfully',
+                style: AppFonts.snackBar,
+              ),
+            ],
           ),
-          backgroundColor: Colors.black87,
+          backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(8),
           duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
     }
@@ -206,7 +236,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 content: Text(
                   'You will stop receiving notifications from this Channel',
-                  style: AppFonts.listItemSubtitle.copyWith(fontSize: 15),
+                  style: AppFonts.listItemSubtitle.copyWith(
+                    fontSize: AppFonts.bodyLarge,
+                  ),
                 ),
                 actions: [
                   TextButton(
@@ -241,9 +273,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SnackBar(
               content: Text(
                 'Unsubscribed from channel',
-                style: AppFonts.listItemSubtitle.copyWith(fontSize: 14),
+                style: AppFonts.listItemSubtitle.copyWith(
+                  fontSize: AppFonts.bodyMedium,
+                ),
               ),
-              backgroundColor: Colors.black87,
+              backgroundColor: AppColors.primary,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(8),
               duration: const Duration(seconds: 2),
@@ -256,7 +290,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SnackBar(
               content: Text(
                 'Error unsubscribing: ${e.toString()}',
-                style: AppFonts.listItemSubtitle.copyWith(fontSize: 14),
+                style: AppFonts.listItemSubtitle.copyWith(
+                  fontSize: AppFonts.bodyMedium,
+                ),
               ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
@@ -277,57 +313,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Channel Subscriptions', trailingIcon: Icons.add),
-        _buildGroupSubscribeCard(),
-        const SizedBox(height: 8),
+        _buildSectionTitle('Channel Subscriptions', showAddButton: true),
+        const SizedBox(height: 12),
         _buildSubscribedGroupsList(),
       ],
-    );
-  }
-
-  Widget _buildGroupSubscribeCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: _showSubscribeDialog,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Subscribe to a channel',
-                    style: AppFonts.cardTitle.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -380,7 +369,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.group_outlined, size: 48, color: Colors.grey.shade400),
+            Icon(Icons.campaign, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'No channel subscriptions yet',
@@ -450,6 +439,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Expanded(
                     child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -494,6 +484,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               );
                             },
                           ),
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
@@ -564,7 +555,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : 'Local notification history cleared',
                 style: AppFonts.snackBar,
               ),
-              backgroundColor: Colors.black87,
+              backgroundColor: AppColors.primary,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(8),
               duration: const Duration(seconds: 2),
@@ -587,15 +578,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Widget _buildSectionTitle(String title, {IconData? trailingIcon}) {
+  // Updated section title with animated add button when needed
+  Widget _buildSectionTitle(String title, {bool showAddButton = false}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(title, style: AppFonts.sectionTitle),
-          if (trailingIcon != null)
-            Icon(trailingIcon, size: 20, color: AppColors.secondary),
+          if (showAddButton)
+            GestureDetector(
+              onTap: _showSubscribeDialog,
+              child: ScaleTransition(
+                scale: Tween(begin: 1.0, end: 0.9).animate(
+                  CurvedAnimation(
+                    parent: _animationController,
+                    curve: Curves.easeInOut,
+                  ),
+                ),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, AppColors.secondary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -632,22 +654,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        gradient: AppColors.accentGradient,
+                        color: AppColors.secondary.withOpacity(0.1),
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withOpacity(0.2),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.vpn_key_outlined,
-                        color: Colors.white,
-                        size: 18,
+                        color: AppColors.secondary,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -849,7 +864,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Text(
                       'Offline',
                       style: AppFonts.cardSubtitle.copyWith(
-                        fontSize: 10,
+                        fontSize: AppFonts.small,
                         color: Colors.grey.shade500,
                       ),
                     ),

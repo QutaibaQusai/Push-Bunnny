@@ -121,11 +121,11 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
       title: Row(
         children: [
           Image.asset('assets/iconWhite.png', height: 24, width: 24),
-          const SizedBox(width: 5),
+          const SizedBox(width: 7),
           Text(
             'Push Bunny',
             style: AppFonts.appBarTitle.copyWith(
-              fontSize: 18,
+              fontSize: AppFonts.heading2,
               letterSpacing: 0.2,
               fontWeight: FontWeight.w600,
             ),
@@ -157,23 +157,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           },
           child: Padding(
             padding: const EdgeInsets.only(right: 16.0),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: CircleAvatar(
-                radius: 15,
-                backgroundColor: Colors.white,
-                child: Icon(Icons.settings, color: AppColors.primary),
-              ),
-            ),
+            child: Icon(Icons.settings, color: AppColors.background),
           ),
         ),
       ],
@@ -267,21 +251,14 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                child: Text(
-                  'Filter Messages',
-                  style: AppFonts.cardTitle.copyWith(
-                    fontSize: AppFonts.bodyMedium,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
               SizedBox(
                 height: 50,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   children: [
                     _buildFilterChip(
                       label: 'All Messages',
@@ -296,7 +273,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                     ...subscriptions.map((subscription) {
                       return _buildFilterChip(
                         label: subscription.name,
-                        icon: Icons.group,
+                        icon: Icons.campaign,
                         isSelected: selectedGroupId == subscription.id,
                         onTap: () {
                           setState(() {
@@ -398,7 +375,9 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                 ),
                 content: Text(
                   'This message will be removed from this device',
-                  style: AppFonts.listItemSubtitle.copyWith(fontSize: 15),
+                  style: AppFonts.listItemSubtitle.copyWith(
+                    fontSize: AppFonts.bodyLarge,
+                  ),
                 ),
                 actions: [
                   TextButton(
@@ -431,7 +410,9 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
         SnackBar(
           content: Text(
             'Message deleted',
-            style: AppFonts.listItemSubtitle.copyWith(fontSize: 14),
+            style: AppFonts.listItemSubtitle.copyWith(
+              fontSize: AppFonts.bodyMedium,
+            ),
           ),
           backgroundColor: Colors.black87,
           behavior: SnackBarBehavior.floating,
@@ -463,7 +444,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           Text(
             errorMessage ?? 'Unable to load messages',
             style: AppFonts.listItemSubtitle.copyWith(
-              fontSize: 16,
+              fontSize: AppFonts.bodyLarge,
               color: Colors.grey.shade700,
             ),
           ),
@@ -499,7 +480,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
               style: AppFonts.listItemSubtitle.copyWith(
                 color: AppColors.secondary,
                 fontWeight: FontWeight.w500,
-                fontSize: 14,
+                fontSize: AppFonts.bodyMedium,
               ),
             ),
           ),
@@ -531,7 +512,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           Text(
             'No messages yet',
             style: AppFonts.listItemTitle.copyWith(
-              fontSize: 17,
+              fontSize: AppFonts.heading3,
               color: Colors.grey.shade700,
             ),
           ),
@@ -539,7 +520,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           Text(
             'Messages will appear here',
             style: AppFonts.listItemSubtitle.copyWith(
-              fontSize: 15,
+              fontSize: AppFonts.bodyLarge,
               color: Colors.grey.shade500,
             ),
           ),

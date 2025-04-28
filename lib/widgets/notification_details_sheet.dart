@@ -105,10 +105,8 @@ class NotificationDetailsSheet extends StatelessWidget {
             const SizedBox(height: 5),
             _buildBodyText(),
             const SizedBox(height: 12),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
-
               children: [
                 _buildTimestamp(),
                 Spacer(),
@@ -127,7 +125,7 @@ class NotificationDetailsSheet extends StatelessWidget {
     return Text(
       notification.title,
       style: AppFonts.listItemTitle.copyWith(
-        fontSize: AppFonts.heading3,
+        fontSize: AppFonts.heading3, // Changed from hard-coded value
         fontWeight: AppFonts.bold,
         color: AppColors.textPrimary,
       ),
@@ -165,7 +163,7 @@ class NotificationDetailsSheet extends StatelessWidget {
             notification.groupName!,
             style: AppFonts.cardTitle.copyWith(
               color: AppColors.background,
-              fontSize: AppFonts.small,
+              fontSize: AppFonts.small, 
             ),
           ),
         ],

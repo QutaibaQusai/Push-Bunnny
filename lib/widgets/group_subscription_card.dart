@@ -48,7 +48,7 @@ class GroupSubscriptionCard extends StatelessWidget {
                       Text(
                         'Subscribed ${DateFormat('MMM d, yyyy').format(subscription.subscribedAt)}',
                         style: AppFonts.cardSubtitle.copyWith(
-                          fontSize: 12,
+                          fontSize: AppFonts.bodySmall,
                           color: AppColors.textTertiary,
                         ),
                       ),

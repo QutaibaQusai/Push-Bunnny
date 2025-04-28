@@ -89,7 +89,7 @@ class AboutScreen extends StatelessWidget {
                 Text(
                   'Push Bunny',
                   style: AppFonts.listItemTitle.copyWith(
-                    fontSize: 24,
+                    fontSize: AppFonts.heading1, // Changed from 24 to AppFonts.heading1
                     fontWeight: AppFonts.bold,
                     color: Colors.white,
                     letterSpacing: 0.5,
@@ -99,7 +99,7 @@ class AboutScreen extends StatelessWidget {
                 Text(
                   'Simple & Efficient Notifications',
                   style: AppFonts.cardSubtitle.copyWith(
-                    fontSize: AppFonts.small,
+                    fontSize: AppFonts.small, // Already using AppFonts.small
                     color: Colors.white.withOpacity(0.9),
                     letterSpacing: 0.5,
                   ),
@@ -172,7 +172,7 @@ class AboutScreen extends StatelessWidget {
               Text(
                 title,
                 style: AppFonts.cardTitle.copyWith(
-                  fontSize: AppFonts.bodySmall,
+                  fontSize: AppFonts.bodySmall, 
                   fontWeight: AppFonts.semiBold,
                 ),
               ),
@@ -182,7 +182,7 @@ class AboutScreen extends StatelessWidget {
           Text(
             description,
             style: AppFonts.cardSubtitle.copyWith(
-              fontSize: AppFonts.caption,
+              fontSize: AppFonts.caption, 
               color: AppColors.textSecondary,
               height: AppFonts.lineHeightRelaxed,
             ),
@@ -214,7 +214,7 @@ class AboutScreen extends StatelessWidget {
           Text(
             value,
             style: AppFonts.listItemSubtitle.copyWith(
-              fontSize: AppFonts.caption,
+              fontSize: AppFonts.caption, 
               color: AppColors.textSecondary,
               fontWeight: AppFonts.medium,
             ),
