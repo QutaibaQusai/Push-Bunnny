@@ -11,7 +11,6 @@ import 'package:push_bunnny/models/notification_model.dart';
 import 'package:push_bunnny/screens/settings_screen%20.dart';
 import 'package:push_bunnny/services/group_subscription_service.dart';
 import 'package:push_bunnny/services/notification_service.dart';
-import 'package:push_bunnny/widgets/connection_status_bar.dart';
 import 'package:push_bunnny/widgets/notification_card.dart';
 import 'package:push_bunnny/widgets/notification_details_sheet.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -184,7 +183,6 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   Widget _buildLayoutWithFilter() {
     return Column(
       children: [
-        if (!isOnline) ConnectionStatusBar(isOnline: isOnline),
         _buildGroupFilterSection(),
         Expanded(child: _buildNotificationList()),
       ],

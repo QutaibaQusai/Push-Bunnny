@@ -42,6 +42,10 @@ void main() async {
   final authService = AuthService();
   final userId = await authService.getUserId();
   
+  // Set up token refresh listener and update the device info
+  authService.setupTokenRefreshListener();
+  await authService.updateDeviceInfo();
+  
   // Perform migration if needed
   await MigrationHelper.migrateUserData(userId);
 

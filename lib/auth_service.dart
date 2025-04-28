@@ -1,12 +1,14 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:push_bunnny/services/device_info_service.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final DeviceInfoService _deviceInfoService = DeviceInfoService();
   
   // Static UUID generator
   static const Uuid _uuid = Uuid();
@@ -33,7 +35,7 @@ class AuthService {
     }
     
     // If no persistent ID exists, generate a new one and store it
-    final newUuid = _generateAndStorePersistentUserId();
+    final newUuid = await _generateAndStorePersistentUserId();
     return newUuid;
   }
 
@@ -62,6 +64,10 @@ class AuthService {
       
       await prefs.setString(_userIdKey, newUserId);
       debugPrint('Generated new persistent user ID: ${newUserId.substring(0, 10)}...');
+      
+      // Save the user ID to Firestore with device info
+      await _saveUserWithDeviceInfo(newUserId);
+      
       return newUserId;
     } catch (e) {
       // Last resort fallback
@@ -69,6 +75,58 @@ class AuthService {
       final fallbackId = 'device_${DateTime.now().millisecondsSinceEpoch}';
       return fallbackId;
     }
+  }
+
+  // Save user to Firestore with device token and device info
+  Future<void> _saveUserWithDeviceInfo(String userId) async {
+    try {
+      final deviceToken = await _messaging.getToken();
+      final deviceInfo = await _deviceInfoService.getDeviceInfo();
+      
+      // Create a map with all the user data
+      final userData = {
+        'userId': userId,
+        'deviceToken': deviceToken,
+        ...deviceInfo, // Spread the device info map into the user data
+      };
+      
+      await _firestore.collection('users').doc(userId).set(userData);
+      
+      debugPrint('Saved user with device info to Firestore');
+    } catch (e) {
+      debugPrint('Error saving user to Firestore: $e');
+    }
+  }
+
+  // Update the device token and info for the current user
+  Future<void> updateDeviceInfo() async {
+    try {
+      final userId = await getUserId();
+      final deviceToken = await _messaging.getToken();
+      final deviceInfo = await _deviceInfoService.getDeviceInfo();
+      
+      if (deviceToken != null) {
+        // Create a map with the updated data
+        final updatedData = {
+          'deviceToken': deviceToken,
+          ...deviceInfo,
+        };
+        
+        await _firestore.collection('users').doc(userId).update(updatedData);
+        
+        debugPrint('Updated device token and info in Firestore');
+      }
+    } catch (e) {
+      debugPrint('Error updating device info: $e');
+    }
+  }
+
+  // Set up token refresh listener to keep the token updated in Firestore
+  void setupTokenRefreshListener() {
+    _messaging.onTokenRefresh.listen((newToken) async {
+      debugPrint('FCM Token refreshed: $newToken');
+      await updateDeviceInfo();
+    });
   }
 
   // Check if we have a valid user ID

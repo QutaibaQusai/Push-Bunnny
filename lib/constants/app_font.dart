@@ -64,7 +64,6 @@ class AppFonts {
     color: AppColors.textSecondary,
   );
 
-  // Copy button style (e.g., "Copy", "Copied")
   static TextStyle get copyButton => GoogleFonts.inter(
     fontSize: caption,
     fontWeight: semiBold,

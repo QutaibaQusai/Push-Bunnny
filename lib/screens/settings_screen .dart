@@ -9,15 +9,12 @@ import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:push_bunnny/screens/about_screen.dart';
-import 'package:push_bunnny/services/data_sync_servic.dart';
 import 'package:push_bunnny/services/hive_database_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/group_subscription_model.dart';
 import '../services/group_subscription_service.dart';
 import '../widgets/group_subscription_card.dart';
 import '../widgets/group_subscription_dialog.dart';
-import '../widgets/connection_status_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,17 +27,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? deviceToken;
   bool isTokenCopied = false;
   bool notificationsEnabled = true;
-  bool storeNotificationsOffline = true;
   bool isOnline = true;
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   final GroupSubscriptionService _groupService = GroupSubscriptionService();
   final AuthService _authService = AuthService();
   final HiveDatabaseService _hiveService = HiveDatabaseService();
-  final DataSyncService _syncService = DataSyncService();
   final Connectivity _connectivity = Connectivity();
   String? userId;
   bool isLoading = true;
-  bool isSyncing = false;
 
   @override
   void initState() {
@@ -54,56 +48,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _connectivitySubscription.cancel();
     super.dispose();
-  }
-
-  Future<void> _handleManualSync() async {
-    if (isSyncing) return;
-
-    setState(() {
-      isSyncing = true;
-    });
-
-    try {
-      final success = await _syncService.manualSync();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Notifications synced successfully'
-                  : 'Failed to sync notifications',
-              style: AppFonts.snackBar,
-            ),
-            backgroundColor: success ? Colors.black87 : Colors.red,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(8),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error syncing notifications: ${e.toString()}',
-              style: AppFonts.snackBar,
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(8),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isSyncing = false;
-        });
-      }
-    }
   }
 
   Future<void> _checkConnectivity() async {
@@ -135,11 +79,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _loadDeviceToken();
     await _loadUserId();
     await _checkNotificationStatus();
-
-    // Load stored preferences for offline storage
-    final prefs = await SharedPreferences.getInstance();
-    storeNotificationsOffline =
-        prefs.getBool('store_notifications_offline') ?? true;
 
     if (mounted) {
       setState(() {
@@ -186,23 +125,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     if (value) {
-      // Request permissions if toggled on
       await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
     }
-  }
-
-  void _handleOfflineStorageToggle(bool value) async {
-    setState(() {
-      storeNotificationsOffline = value;
-    });
-
-    // Save preference
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('store_notifications_offline', value);
   }
 
   void _copyTokenToClipboard() {
@@ -341,7 +269,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  // Add this widget to include in your build method:
   Widget _buildGroupSubscriptionSection() {
     if (userId == null) {
       return const Center(child: CircularProgressIndicator());
@@ -350,7 +277,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Channel Subscriptions'),
+        _buildSectionTitle('Channel Subscriptions', trailingIcon: Icons.add),
         _buildGroupSubscribeCard(),
         const SizedBox(height: 8),
         _buildSubscribedGroupsList(),
@@ -383,15 +310,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.accentGradient,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     'Subscribe to a channel',
@@ -530,8 +448,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               )
               : Column(
                 children: [
-                  // Show connection status bar when offline
-                  if (!isOnline) ConnectionStatusBar(isOnline: isOnline),
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
@@ -549,15 +465,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             initialToggleValue: notificationsEnabled,
                             onToggleChanged: _handleToggle,
                           ),
-                          // Add option for offline storage
-                          // _buildSettingCard(
-                          //   'Offline Storage',
-                          //   'Store notifications locally for offline access',
-                          //   Icons.offline_bolt_outlined,
-                          //   isToggle: true,
-                          //   initialToggleValue: storeNotificationsOffline,
-                          //   onToggleChanged: _handleOfflineStorageToggle,
-                          // ),
                           const SizedBox(height: 16),
                           _buildGroupSubscriptionSection(),
 
@@ -570,16 +477,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               _showClearHistoryDialog();
                             },
                           ),
-                          // Add sync data option
-                          // _buildSettingCard(
-                          //   'Sync Notifications',
-                          //   isOnline
-                          //       ? 'Manually sync notifications with the cloud'
-                          //       : 'Sync locally stored notifications when back online',
-                          //   Icons.sync,
-                          //   isOfflineAction: !isOnline,
-                          //   onTap: isOnline ? _handleManualSync : null,
-                          // ),
                           _buildSectionTitle('About Push Bunny'),
 
                           _buildSettingCard(
@@ -640,22 +537,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirm) {
       try {
-        // Get the current user ID
         final String currentUserId = await _authService.getUserId();
 
-        // First clear local storage
         await _hiveService.deleteAllNotifications(currentUserId);
 
-        // Then clear Firestore if online
         if (isOnline) {
-          // Delete all notifications for the current user
           final notifications =
               await FirebaseFirestore.instance
                   .collection('notifications')
                   .where('userId', isEqualTo: currentUserId)
                   .get();
 
-          // Delete in batches
           final batch = FirebaseFirestore.instance.batch();
           for (var doc in notifications.docs) {
             batch.delete(doc.reference);
@@ -695,10 +587,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, {IconData? trailingIcon}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(title, style: AppFonts.sectionTitle),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: AppFonts.sectionTitle),
+          if (trailingIcon != null)
+            Icon(trailingIcon, size: 20, color: AppColors.secondary),
+        ],
+      ),
     );
   }
 

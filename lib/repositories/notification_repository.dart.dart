@@ -16,7 +16,6 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
   importance: Importance.max,
   playSound: true,
 );
-
 Future<void> saveNotificationToFirestore(
   RemoteMessage message,
   String appState,
@@ -106,6 +105,13 @@ Future<void> saveNotificationToFirestore(
       
       // Delete the temporary notification
       await hiveService.deleteNotification(localNotification.id);
+      
+      // Update the device token in the user's document
+      if (fcmToken != null) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'deviceToken': fcmToken,
+        });
+      }
       
       debugPrint(
         'Notification saved to Firestore and local storage with groupId: $groupId, from: ${message.from}',

@@ -32,8 +32,6 @@ class AboutScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildInfoRow('Version', '1.0.0', Icons.tag),
-                  _buildInfoRow('Platform', 'Flutter', Icons.devices),
-                  _buildInfoRow('Developer', 'Push Bunny Team', Icons.person),
                 ],
               ),
             ),
@@ -57,13 +55,6 @@ class AboutScreen extends StatelessWidget {
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: Stack(
         children: [
