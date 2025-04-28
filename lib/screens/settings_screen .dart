@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -7,10 +9,15 @@ import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:push_bunnny/screens/about_screen.dart';
+import 'package:push_bunnny/services/data_sync_servic.dart';
+import 'package:push_bunnny/services/hive_database_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/group_subscription_model.dart';
 import '../services/group_subscription_service.dart';
 import '../widgets/group_subscription_card.dart';
 import '../widgets/group_subscription_dialog.dart';
+import '../widgets/connection_status_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -23,15 +30,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? deviceToken;
   bool isTokenCopied = false;
   bool notificationsEnabled = true;
+  bool storeNotificationsOffline = true;
+  bool isOnline = true;
+  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
   final GroupSubscriptionService _groupService = GroupSubscriptionService();
   final AuthService _authService = AuthService();
+  final HiveDatabaseService _hiveService = HiveDatabaseService();
+  final DataSyncService _syncService = DataSyncService();
+  final Connectivity _connectivity = Connectivity();
   String? userId;
   bool isLoading = true;
+  bool isSyncing = false;
 
   @override
   void initState() {
     super.initState();
     _initializeData();
+    _checkConnectivity();
+    _setupConnectivityListener();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleManualSync() async {
+    if (isSyncing) return;
+
+    setState(() {
+      isSyncing = true;
+    });
+
+    try {
+      final success = await _syncService.manualSync();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Notifications synced successfully'
+                  : 'Failed to sync notifications',
+              style: AppFonts.snackBar,
+            ),
+            backgroundColor: success ? Colors.black87 : Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(8),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error syncing notifications: ${e.toString()}',
+              style: AppFonts.snackBar,
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(8),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSyncing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _checkConnectivity() async {
+    final result = await _connectivity.checkConnectivity();
+    if (mounted) {
+      setState(() {
+        isOnline = result != ConnectivityResult.none;
+      });
+    }
+  }
+
+  void _setupConnectivityListener() {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      result,
+    ) {
+      if (mounted) {
+        setState(() {
+          isOnline = result != ConnectivityResult.none;
+        });
+      }
+    });
   }
 
   Future<void> _initializeData() async {
@@ -42,6 +135,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _loadDeviceToken();
     await _loadUserId();
     await _checkNotificationStatus();
+
+    // Load stored preferences for offline storage
+    final prefs = await SharedPreferences.getInstance();
+    storeNotificationsOffline =
+        prefs.getBool('store_notifications_offline') ?? true;
 
     if (mounted) {
       setState(() {
@@ -95,6 +193,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         sound: true,
       );
     }
+  }
+
+  void _handleOfflineStorageToggle(bool value) async {
+    setState(() {
+      storeNotificationsOffline = value;
+    });
+
+    // Save preference
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('store_notifications_offline', value);
   }
 
   void _copyTokenToClipboard() {
@@ -236,7 +344,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Add this widget to include in your build method:
   Widget _buildGroupSubscriptionSection() {
     if (userId == null) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
 
     return Column(
@@ -306,14 +414,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSubscribedGroupsList() {
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<List<GroupSubscriptionModel>>(
       stream: _groupService.getUserSubscribedGroups(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _buildErrorWidget('Could not load subscriptions');
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Padding(
             padding: EdgeInsets.all(16),
             child: Center(
@@ -325,8 +434,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
+        final subscriptions = snapshot.data ?? [];
+        if (subscriptions.isEmpty) {
           return _buildEmptySubscriptions();
         }
 
@@ -334,10 +443,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children:
-                docs.map((doc) {
-                  final subscription = GroupSubscriptionModel.fromFirestore(
-                    doc,
-                  );
+                subscriptions.map((subscription) {
                   return GroupSubscriptionCard(
                     subscription: subscription,
                     onUnsubscribe: () => _handleUnsubscribe(subscription.id),
@@ -399,7 +505,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text('Settings', style: AppFonts.appBarTitle),
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -422,53 +528,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               )
-              : SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionTitle('Device Settings'),
-                    _buildTokenCard(),
-                    const SizedBox(height: 16),
-                    _buildSectionTitle('Notification Settings'),
-                    _buildSettingCard(
-                      'Enable Notifications',
-                      'Receive push notifications from Push Bunny',
-                      Icons.notifications_outlined,
-                      isToggle: true,
-                      initialToggleValue: notificationsEnabled,
-                      onToggleChanged: _handleToggle,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildGroupSubscriptionSection(),
-
-                    _buildSectionTitle('Data Management'),
-                    _buildSettingCard(
-                      'Clear Notification History',
-                      'Delete all notification history from this device',
-                      Icons.delete_outline,
-                      onTap: () {
-                        _showClearHistoryDialog();
-                      },
-                    ),
-                    _buildSectionTitle('About Push Bunny'),
-
-                    _buildSettingCard(
-                      'About',
-                      'App version and information',
-                      Icons.info_outline,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          PageTransition(
-                            type: PageTransitionType.fade,
-                            child: AboutScreen(),
-                            duration: Duration(milliseconds: 100),
+              : Column(
+                children: [
+                  // Show connection status bar when offline
+                  if (!isOnline) ConnectionStatusBar(isOnline: isOnline),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle('Device Settings'),
+                          _buildTokenCard(),
+                          const SizedBox(height: 16),
+                          _buildSectionTitle('Notification Settings'),
+                          _buildSettingCard(
+                            'Enable Notifications',
+                            'Receive push notifications from Push Bunny',
+                            Icons.notifications_outlined,
+                            isToggle: true,
+                            initialToggleValue: notificationsEnabled,
+                            onToggleChanged: _handleToggle,
                           ),
-                        );
-                      },
+                          // Add option for offline storage
+                          // _buildSettingCard(
+                          //   'Offline Storage',
+                          //   'Store notifications locally for offline access',
+                          //   Icons.offline_bolt_outlined,
+                          //   isToggle: true,
+                          //   initialToggleValue: storeNotificationsOffline,
+                          //   onToggleChanged: _handleOfflineStorageToggle,
+                          // ),
+                          const SizedBox(height: 16),
+                          _buildGroupSubscriptionSection(),
+
+                          _buildSectionTitle('Data Management'),
+                          _buildSettingCard(
+                            'Clear Notification History',
+                            'Delete all notification history from this device',
+                            Icons.delete_outline,
+                            onTap: () {
+                              _showClearHistoryDialog();
+                            },
+                          ),
+                          // Add sync data option
+                          // _buildSettingCard(
+                          //   'Sync Notifications',
+                          //   isOnline
+                          //       ? 'Manually sync notifications with the cloud'
+                          //       : 'Sync locally stored notifications when back online',
+                          //   Icons.sync,
+                          //   isOfflineAction: !isOnline,
+                          //   onTap: isOnline ? _handleManualSync : null,
+                          // ),
+                          _buildSectionTitle('About Push Bunny'),
+
+                          _buildSettingCard(
+                            'About',
+                            'App version and information',
+                            Icons.info_outline,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                PageTransition(
+                                  type: PageTransitionType.fade,
+                                  child: const AboutScreen(),
+                                  duration: const Duration(milliseconds: 100),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
     );
   }
@@ -510,25 +643,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Get the current user ID
         final String currentUserId = await _authService.getUserId();
 
-        // Delete all notifications for the current user
-        final notifications =
-            await FirebaseFirestore.instance
-                .collection('notifications')
-                .where('userId', isEqualTo: currentUserId)
-                .get();
+        // First clear local storage
+        await _hiveService.deleteAllNotifications(currentUserId);
 
-        // Delete in batches
-        final batch = FirebaseFirestore.instance.batch();
-        for (var doc in notifications.docs) {
-          batch.delete(doc.reference);
+        // Then clear Firestore if online
+        if (isOnline) {
+          // Delete all notifications for the current user
+          final notifications =
+              await FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('userId', isEqualTo: currentUserId)
+                  .get();
+
+          // Delete in batches
+          final batch = FirebaseFirestore.instance.batch();
+          for (var doc in notifications.docs) {
+            batch.delete(doc.reference);
+          }
+          await batch.commit();
         }
-        await batch.commit();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Notification history cleared'),
+            SnackBar(
+              content: Text(
+                isOnline
+                    ? 'Notification history cleared'
+                    : 'Local notification history cleared',
+                style: AppFonts.snackBar,
+              ),
               backgroundColor: Colors.black87,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(8),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -538,6 +685,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SnackBar(
               content: Text('Error clearing history: ${e.toString()}'),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(8),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -554,10 +704,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildTokenCard() {
     String displayToken = deviceToken ?? 'Fetching token...';
-
-    // // If the token is the same as the user ID, highlight this information
-    // bool isUserIdentifier =
-    //     userId != null && deviceToken != null && userId == deviceToken;
 
     return Container(
       decoration: BoxDecoration(
@@ -691,41 +837,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
 
-                // // Show user ID info if needed
-                // if (isUserIdentifier) ...[
-                //   const SizedBox(height: 10),
-                //   Container(
-                //     padding: const EdgeInsets.symmetric(
-                //       horizontal: 8,
-                //       vertical: 4,
-                //     ),
-                //     decoration: BoxDecoration(
-                //       color: AppColors.success.withOpacity(0.1),
-                //       borderRadius: BorderRadius.circular(4),
-                //       border: Border.all(
-                //         color: AppColors.success.withOpacity(0.3),
-                //       ),
-                //     ),
-                //     child: Row(
-                //       mainAxisSize: MainAxisSize.min,
-                //       children: [
-                //         Icon(
-                //           Icons.info_outline,
-                //           size: 12,
-                //           color: AppColors.success,
-                //         ),
-                //         const SizedBox(width: 4),
-                //         Text(
-                //           'Used as your device identifier',
-                //           style: AppFonts.tokenHint.copyWith(
-                //             color: AppColors.success,
-                //             fontWeight: FontWeight.w500,
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // ],
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -759,6 +870,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool isToggle = false,
     bool initialToggleValue = false,
     ValueChanged<bool>? onToggleChanged,
+    bool isOfflineAction = false,
   }) {
     return Container(
       color: AppColors.card,
@@ -773,19 +885,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color:
+                        isOfflineAction && !isOnline
+                            ? Colors.grey.shade200
+                            : AppColors.secondary.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: AppColors.secondary, size: 20),
+                  child: Icon(
+                    icon,
+                    color:
+                        isOfflineAction && !isOnline
+                            ? Colors.grey.shade500
+                            : AppColors.secondary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: AppFonts.cardTitle),
+                      Text(
+                        title,
+                        style: AppFonts.cardTitle.copyWith(
+                          color:
+                              isOfflineAction && !isOnline
+                                  ? Colors.grey.shade500
+                                  : AppColors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text(subtitle, style: AppFonts.cardSubtitle),
+                      Text(
+                        subtitle,
+                        style: AppFonts.cardSubtitle.copyWith(
+                          color:
+                              isOfflineAction && !isOnline
+                                  ? Colors.grey.shade400
+                                  : AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -794,6 +932,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: initialToggleValue,
                     onChanged: onToggleChanged,
                     activeColor: AppColors.secondary,
+                  )
+                else if (isOfflineAction && !isOnline)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      'Offline',
+                      style: AppFonts.cardSubtitle.copyWith(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
                   )
                 else
                   const Icon(

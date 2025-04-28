@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:push_bunnny/auth_service.dart';
 import 'package:push_bunnny/constants/app_colors.dart';
 import 'package:push_bunnny/constants/app_font.dart';
+import 'package:push_bunnny/models/group_subscription_model.dart';
 import 'package:push_bunnny/models/notification_model.dart';
 import 'package:push_bunnny/screens/settings_screen%20.dart';
+import 'package:push_bunnny/services/group_subscription_service.dart';
 import 'package:push_bunnny/services/notification_service.dart';
+import 'package:push_bunnny/widgets/connection_status_bar.dart';
 import 'package:push_bunnny/widgets/notification_card.dart';
 import 'package:push_bunnny/widgets/notification_details_sheet.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class NotificationHistoryScreen extends StatefulWidget {
   const NotificationHistoryScreen({super.key});
@@ -23,14 +28,26 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   final dateFormat = DateFormat('HH:mm');
   final NotificationService notificationService = NotificationService();
   final AuthService authService = AuthService();
+  final Connectivity _connectivity = Connectivity();
   String? selectedGroupId;
   String? userId;
   bool isLoading = true;
+  bool isOnline = true;
+  late Stream<List<NotificationModel>> _notificationsStream;
 
   @override
   void initState() {
     super.initState();
     _loadUserId();
+    _checkConnectivity();
+    _setupConnectivityListener();
+  }
+
+  @override
+  void dispose() {
+    // Cancel connectivity listener
+    _connectivitySubscription.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUserId() async {
@@ -40,6 +57,8 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
         setState(() {
           userId = id;
           isLoading = false;
+          // Initialize the notifications stream
+          _notificationsStream = notificationService.getUserNotifications();
         });
       }
     } catch (e) {
@@ -50,6 +69,40 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
       }
       debugPrint('Error loading user ID: $e');
     }
+  }
+
+  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
+
+  Future<void> _checkConnectivity() async {
+    final result = await _connectivity.checkConnectivity();
+    if (mounted) {
+      setState(() {
+        isOnline = result != ConnectivityResult.none;
+      });
+    }
+  }
+
+  void _setupConnectivityListener() {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      result,
+    ) {
+      if (mounted) {
+        setState(() {
+          isOnline = result != ConnectivityResult.none;
+
+          // Refresh the notifications stream when connectivity changes
+          if (userId != null) {
+            if (selectedGroupId != null) {
+              _notificationsStream = notificationService.getGroupNotifications(
+                selectedGroupId!,
+              );
+            } else {
+              _notificationsStream = notificationService.getUserNotifications();
+            }
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -97,9 +150,9 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             Navigator.push(
               context,
               PageTransition(
-                type: PageTransitionType.fade,
+                type: PageTransitionType.rightToLeft,
                 child: const SettingsScreen(),
-                duration: const Duration(milliseconds: 80),
+                duration: const Duration(milliseconds: 350),
               ),
             );
           },
@@ -131,6 +184,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   Widget _buildLayoutWithFilter() {
     return Column(
       children: [
+        if (!isOnline) ConnectionStatusBar(isOnline: isOnline),
         _buildGroupFilterSection(),
         Expanded(child: _buildNotificationList()),
       ],
@@ -138,42 +192,48 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   }
 
   Widget _buildNotificationList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          selectedGroupId != null
-              ? notificationService.getGroupNotifications(selectedGroupId!)
-              : notificationService.getUserNotifications(),
+    if (userId == null) return _buildEmptyWidget();
+
+    // Update the stream if needed
+    if (selectedGroupId != null) {
+      _notificationsStream = notificationService.getGroupNotifications(
+        selectedGroupId!,
+      );
+    } else {
+      _notificationsStream = notificationService.getUserNotifications();
+    }
+
+    return StreamBuilder<List<NotificationModel>>(
+      stream: _notificationsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           debugPrint('Stream error: ${snapshot.error}');
-          String errorMsg = snapshot.error.toString();
-          if (errorMsg.contains('index') || errorMsg.contains('Index')) {
-            return _buildErrorWidget(
-              'This filter requires a Firestore index. Please check Firebase console or reset the filter.',
-            );
-          }
           return _buildErrorWidget();
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return _buildLoadingWidget();
         }
 
-        final notifications = snapshot.data?.docs ?? [];
+        final notifications = snapshot.data ?? [];
         if (notifications.isEmpty) return _buildEmptyWidget();
 
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(0, 8, 0, 26),
           itemCount: notifications.length,
           itemBuilder: (context, index) {
-            final doc = notifications[index];
-            final notification = NotificationModel.fromFirestore(doc);
+            final notification = notifications[index];
 
             return NotificationCard(
               notification: notification,
               dateFormat: dateFormat,
               onDelete:
-                  () => _handleDelete(context, doc.id, notificationService),
+                  () => _handleDelete(
+                    context,
+                    notification.id,
+                    notificationService,
+                  ),
               onTap: () => _showDetailsSheet(context, notification),
             );
           },
@@ -185,19 +245,14 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   Widget _buildGroupFilterSection() {
     if (userId == null) return const SizedBox.shrink();
 
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .collection('subscriptions')
-              .snapshots(),
+    return StreamBuilder<List<GroupSubscriptionModel>>(
+      stream: GroupSubscriptionService().getUserSubscribedGroups(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SizedBox.shrink();
         }
 
-        final docs = snapshot.data!.docs;
+        final subscriptions = snapshot.data!;
 
         return Container(
           decoration: BoxDecoration(
@@ -240,19 +295,14 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                         });
                       },
                     ),
-                    ...docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final String groupId = doc.id;
-                      final String groupName =
-                          data['groupName'] ?? 'Unnamed Group';
-
+                    ...subscriptions.map((subscription) {
                       return _buildFilterChip(
-                        label: groupName,
+                        label: subscription.name,
                         icon: Icons.group,
-                        isSelected: selectedGroupId == groupId,
+                        isSelected: selectedGroupId == subscription.id,
                         onTap: () {
                           setState(() {
-                            selectedGroupId = groupId;
+                            selectedGroupId = subscription.id;
                           });
                         },
                       );

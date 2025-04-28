@@ -5,6 +5,8 @@ import 'package:push_bunnny/auth_service.dart';
 import 'package:push_bunnny/migration_helper.dart';
 import 'package:push_bunnny/repositories/notification_repository.dart.dart';
 import 'package:push_bunnny/screens/notification_history_screen.dart';
+import 'package:push_bunnny/services/data_sync_servic.dart';
+import 'package:push_bunnny/services/hive_database_service.dart';
 import 'firebase_options.dart';
 
 // Global navigator key
@@ -13,6 +15,10 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Hive for background handler
+  final hiveService = HiveDatabaseService();
+  await hiveService.initHive();
 
   // Save notification to Firestore even when app is in background
   await saveNotificationToFirestore(message, 'background');
@@ -23,6 +29,10 @@ void main() async {
 
   // Initialize Firebase first
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Hive for local storage
+  final hiveService = HiveDatabaseService();
+  await hiveService.initHive();
 
   // Set up background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -38,6 +48,10 @@ void main() async {
   // Initialize notification repository
   final notificationRepository = NotificationRepository();
   await notificationRepository.initialize();
+  
+  // Initialize data sync service for offline support
+  final dataSyncService = DataSyncService();
+  await dataSyncService.initialize();
 
   runApp(const MyApp());
 }

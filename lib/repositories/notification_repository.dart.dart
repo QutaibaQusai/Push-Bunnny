@@ -3,7 +3,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:push_bunnny/auth_service.dart';
+import 'package:push_bunnny/models/notification_model.dart';
+import 'package:push_bunnny/services/hive_database_service.dart';
 import 'package:push_bunnny/screens/notification_history_screen.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../main.dart';
 
 // Notification channel definition (accessible at top level)
@@ -46,7 +49,8 @@ Future<void> saveNotificationToFirestore(
       debugPrint('Message has explicit group info: $groupId - $groupName');
     }
 
-    await FirebaseFirestore.instance.collection('notifications').add({
+    // Create the notification data
+    final notificationData = {
       'title': message.notification?.title ?? 'No title',
       'body': message.notification?.body ?? 'No body',
       'imageUrl': message.notification?.android?.imageUrl,
@@ -55,18 +59,62 @@ Future<void> saveNotificationToFirestore(
       'userId': userId, // Using the persistent UUID
       'fcmToken': fcmToken, // Store the FCM token as a separate field
       'appState': appState,
-
-      // Add topic/from information
       'from': message.from,
-
-      // Add group information if available
       'groupId': groupId,
       'groupName': groupName,
-    });
+      'isRead': false,
+    };
 
-    debugPrint(
-      'Notification saved with groupId: $groupId, from: ${message.from}',
+    // Create a NotificationModel instance for local storage
+    final localNotification = NotificationModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(), // Temporary ID for local storage
+      userId: userId,
+      title: notificationData['title'] as String,
+      body: notificationData['body'] as String,
+      timestamp: DateTime.now(),
+      imageUrl: notificationData['imageUrl'] as String?,
+      groupId: notificationData['groupId'] as String?,
+      groupName: notificationData['groupName'] as String?,
+      isRead: false,
     );
+
+    // Save to local storage first
+    final hiveService = HiveDatabaseService();
+    await hiveService.saveNotification(localNotification);
+
+    // Check if online before saving to Firestore
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult != ConnectivityResult.none) {
+      // Save to Firestore
+      final doc = await FirebaseFirestore.instance.collection('notifications').add(notificationData);
+      
+      // Update the local notification with the Firestore ID
+      final updatedNotification = NotificationModel(
+        id: doc.id,
+        userId: localNotification.userId,
+        title: localNotification.title,
+        body: localNotification.body,
+        timestamp: localNotification.timestamp,
+        imageUrl: localNotification.imageUrl,
+        groupId: localNotification.groupId,
+        groupName: localNotification.groupName,
+        isRead: localNotification.isRead,
+      );
+      
+      // Update in local storage with the correct ID
+      await hiveService.saveNotification(updatedNotification);
+      
+      // Delete the temporary notification
+      await hiveService.deleteNotification(localNotification.id);
+      
+      debugPrint(
+        'Notification saved to Firestore and local storage with groupId: $groupId, from: ${message.from}',
+      );
+    } else {
+      debugPrint(
+        'Device offline. Notification saved to local storage only with groupId: $groupId, from: ${message.from}',
+      );
+    }
   } catch (e) {
     debugPrint('Error saving notification: $e');
   }
@@ -77,6 +125,7 @@ class NotificationRepository {
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
   final AuthService _authService = AuthService();
+  final HiveDatabaseService _hiveService = HiveDatabaseService();
   String? _currentFcmToken;
 
   Future<void> initialize() async {
