@@ -124,6 +124,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
           const SizedBox(width: 7),
           Text(
             'Push Bunny',
+
             style: AppFonts.appBarTitle.copyWith(
               fontSize: AppFonts.heading2,
               letterSpacing: 0.2,
@@ -350,57 +351,96 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
     NotificationService notificationService,
   ) async {
     bool confirm =
-        await showDialog(
+        await showGeneralDialog<bool>(
           context: context,
-          builder:
-              (context) => AlertDialog(
+          barrierDismissible: true,
+          barrierLabel: "Delete Dialog",
+          barrierColor: Colors.black54,
+          transitionDuration: const Duration(milliseconds: 300),
+          pageBuilder:
+              (_, __, ___) => Dialog(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                title: Row(
-                  children: [
-                    const Icon(
-                      Icons.delete_outline,
-                      color: Colors.red,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Delete Message',
-                      style: AppFonts.sectionTitle.copyWith(
-                        fontWeight: FontWeight.w600,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow.withOpacity(0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
                       ),
-                    ),
-                  ],
-                ),
-                content: Text(
-                  'This message will be removed from this device',
-                  style: AppFonts.listItemSubtitle.copyWith(
-                    fontSize: AppFonts.bodyLarge,
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Delete Message',
+                        style: AppFonts.sectionTitle.copyWith(
+                          fontSize: AppFonts.bodyLarge,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'This message will be removed from this device',
+                        style: AppFonts.listItemSubtitle.copyWith(
+                          fontSize: AppFonts.bodyMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: AppFonts.bodyMedium,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'Delete',
+                              style: TextStyle(fontSize: AppFonts.bodyMedium),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text(
-                      'CANCEL',
-                      style: AppFonts.listItemSubtitle.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text(
-                      'DELETE',
-                      style: AppFonts.listItemSubtitle.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-                ],
               ),
+          transitionBuilder: (context, animation, secondaryAnimation, child) {
+            return ScaleTransition(
+              scale: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutBack,
+              ),
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          },
         ) ??
         false;
 
@@ -410,11 +450,9 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
         SnackBar(
           content: Text(
             'Message deleted',
-            style: AppFonts.listItemSubtitle.copyWith(
-              fontSize: AppFonts.bodyMedium,
-            ),
+            style: AppFonts.snackBar.copyWith(fontSize: AppFonts.bodyMedium),
           ),
-          backgroundColor: Colors.black87,
+          backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           margin: const EdgeInsets.all(8),

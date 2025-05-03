@@ -25,8 +25,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen>
     with SingleTickerProviderStateMixin {
-  String? deviceToken;
-  bool isTokenCopied = false;
+  String? deviceUuid;
+  bool isUuidCopied = false;
   bool notificationsEnabled = true;
   bool isOnline = true;
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
@@ -85,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       isLoading = true;
     });
 
-    await _loadDeviceToken();
+    await _loadDeviceUuid();
     await _loadUserId();
     await _checkNotificationStatus();
 
@@ -102,6 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       if (mounted) {
         setState(() {
           userId = id;
+          deviceUuid = id; // Set the UUID to the user ID
         });
       }
     } catch (e) {
@@ -109,12 +110,16 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  Future<void> _loadDeviceToken() async {
-    String? token = await FirebaseMessaging.instance.getToken();
-    if (mounted) {
-      setState(() {
-        deviceToken = token;
-      });
+  Future<void> _loadDeviceUuid() async {
+    try {
+      final uuid = await _authService.getUserId();
+      if (mounted) {
+        setState(() {
+          deviceUuid = uuid;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading device UUID: $e');
     }
   }
 
@@ -142,17 +147,17 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  void _copyTokenToClipboard() {
-    if (deviceToken == null) return;
+  void _copyUuidToClipboard() {
+    if (deviceUuid == null) return;
 
-    Clipboard.setData(ClipboardData(text: deviceToken!)).then((_) {
+    Clipboard.setData(ClipboardData(text: deviceUuid!)).then((_) {
       setState(() {
-        isTokenCopied = true;
+        isUuidCopied = true;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Token copied to clipboard', style: AppFonts.snackBar),
+          content: Text('UUID copied to clipboard', style: AppFonts.snackBar),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(8),
@@ -163,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           setState(() {
-            isTokenCopied = false;
+            isUuidCopied = false;
           });
         }
       });
@@ -171,7 +176,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   void _showSubscribeDialog() async {
-    // Play animation when opening dialog
     _animationController.forward().then((_) => _animationController.reverse());
     HapticFeedback.lightImpact();
 
@@ -215,53 +219,96 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   void _handleUnsubscribe(String groupId) async {
     bool confirm =
-        await showDialog(
+        await showGeneralDialog<bool>(
           context: context,
-          builder:
-              (context) => AlertDialog(
+          barrierDismissible: true,
+          barrierLabel: "Unsubscribe Dialog",
+          barrierColor: Colors.black54,
+          transitionDuration: const Duration(milliseconds: 300),
+          pageBuilder:
+              (_, __, ___) => Dialog(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                title: Row(
-                  children: [
-                    const Icon(Icons.unsubscribe, color: Colors.red, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Unsubscribe',
-                      style: AppFonts.sectionTitle.copyWith(
-                        fontWeight: FontWeight.w600,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow.withOpacity(0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
                       ),
-                    ),
-                  ],
-                ),
-                content: Text(
-                  'You will stop receiving notifications from this Channel',
-                  style: AppFonts.listItemSubtitle.copyWith(
-                    fontSize: AppFonts.bodyLarge,
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Unsubscribe',
+                        style: AppFonts.sectionTitle.copyWith(
+                          fontSize: AppFonts.bodyLarge,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'You will stop receiving notifications from this Channel',
+                        style: AppFonts.listItemSubtitle.copyWith(
+                          fontSize: AppFonts.bodyMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: AppFonts.bodyMedium,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'Unsubscribe',
+                              style: TextStyle(fontSize: AppFonts.bodyMedium),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text(
-                      'CANCEL',
-                      style: AppFonts.listItemSubtitle.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text(
-                      'UNSUBSCRIBE',
-                      style: AppFonts.listItemSubtitle.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-                ],
               ),
+          transitionBuilder: (context, animation, secondaryAnimation, child) {
+            return ScaleTransition(
+              scale: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutBack,
+              ),
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          },
         ) ??
         false;
 
@@ -273,12 +320,15 @@ class _SettingsScreenState extends State<SettingsScreen>
             SnackBar(
               content: Text(
                 'Unsubscribed from channel',
-                style: AppFonts.listItemSubtitle.copyWith(
+                style: AppFonts.snackBar.copyWith(
                   fontSize: AppFonts.bodyMedium,
                 ),
               ),
               backgroundColor: AppColors.primary,
               behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               margin: const EdgeInsets.all(8),
               duration: const Duration(seconds: 2),
             ),
@@ -290,12 +340,15 @@ class _SettingsScreenState extends State<SettingsScreen>
             SnackBar(
               content: Text(
                 'Error unsubscribing: ${e.toString()}',
-                style: AppFonts.listItemSubtitle.copyWith(
+                style: AppFonts.snackBar.copyWith(
                   fontSize: AppFonts.bodyMedium,
                 ),
               ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               margin: const EdgeInsets.all(8),
               duration: const Duration(seconds: 2),
             ),
@@ -413,6 +466,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
+        leadingWidth: 40,
         title: Text('Settings', style: AppFonts.appBarTitle),
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -444,12 +498,12 @@ class _SettingsScreenState extends State<SettingsScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSectionTitle('Device Settings'),
-                          _buildTokenCard(),
+                          _buildUuidCard(),
                           const SizedBox(height: 16),
                           _buildSectionTitle('Notification Settings'),
                           _buildSettingCard(
                             'Enable Notifications',
-                            'Receive push notifications from Push Bunny',
+                            'Get Push Bunny notifications',
                             Icons.notifications_outlined,
                             isToggle: true,
                             initialToggleValue: notificationsEnabled,
@@ -477,9 +531,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                               Navigator.push(
                                 context,
                                 PageTransition(
-                                  type: PageTransitionType.fade,
+                                  type: PageTransitionType.rightToLeft,
                                   child: const AboutScreen(),
-                                  duration: const Duration(milliseconds: 100),
+                                  duration: const Duration(milliseconds: 350),
                                 ),
                               );
                             },
@@ -496,31 +550,94 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   void _showClearHistoryDialog() async {
     bool confirm =
-        await showDialog(
+        await showGeneralDialog<bool>(
           context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Clear Notification History'),
-              content: const Text(
-                'This will delete all your notification history. This action cannot be undone.',
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('CANCEL'),
-                  onPressed: () {
-                    Navigator.of(context).pop(false);
-                  },
+          barrierDismissible: true,
+          barrierLabel: "Clear History Dialog",
+          barrierColor: Colors.black54,
+          transitionDuration: const Duration(milliseconds: 300),
+          pageBuilder:
+              (_, __, ___) => Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                TextButton(
-                  child: const Text(
-                    'CLEAR',
-                    style: TextStyle(color: Colors.red),
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shadow.withOpacity(0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Clear Notification History',
+                        style: AppFonts.sectionTitle.copyWith(
+                          fontSize: AppFonts.bodyLarge,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'This will delete all your notification history. This action cannot be undone.',
+                        style: AppFonts.listItemSubtitle.copyWith(
+                          fontSize: AppFonts.bodyMedium,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: AppFonts.bodyMedium,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              'Clear',
+                              style: TextStyle(fontSize: AppFonts.bodyMedium),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
+          transitionBuilder: (context, animation, secondaryAnimation, child) {
+            return ScaleTransition(
+              scale: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutBack,
+              ),
+              child: FadeTransition(opacity: animation, child: child),
             );
           },
         ) ??
@@ -553,11 +670,16 @@ class _SettingsScreenState extends State<SettingsScreen>
                 isOnline
                     ? 'Notification history cleared'
                     : 'Local notification history cleared',
-                style: AppFonts.snackBar,
+                style: AppFonts.snackBar.copyWith(
+                  fontSize: AppFonts.bodyMedium,
+                ),
               ),
               backgroundColor: AppColors.primary,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -566,10 +688,18 @@ class _SettingsScreenState extends State<SettingsScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error clearing history: ${e.toString()}'),
+              content: Text(
+                'Error clearing history: ${e.toString()}',
+                style: AppFonts.snackBar.copyWith(
+                  fontSize: AppFonts.bodyMedium,
+                ),
+              ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.all(8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               duration: const Duration(seconds: 2),
             ),
           );
@@ -578,7 +708,6 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
   }
 
-  // Updated section title with animated add button when needed
   Widget _buildSectionTitle(String title, {bool showAddButton = false}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -623,8 +752,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
   }
 
-  Widget _buildTokenCard() {
-    String displayToken = deviceToken ?? 'Fetching token...';
+  Widget _buildUuidCard() {
+    String displayUuid = deviceUuid ?? 'Fetching UUID...';
 
     return Container(
       decoration: BoxDecoration(
@@ -644,7 +773,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: _copyTokenToClipboard,
+          onTap: _copyUuidToClipboard,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(5),
@@ -667,7 +796,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ),
                     const SizedBox(width: 16),
                     Text(
-                      'Device Token',
+                      'Device UUID',
                       style: AppFonts.cardTitle.copyWith(
                         letterSpacing: 0.2,
                         fontWeight: AppFonts.semiBold,
@@ -682,13 +811,13 @@ class _SettingsScreenState extends State<SettingsScreen>
                       ),
                       decoration: BoxDecoration(
                         color:
-                            isTokenCopied
+                            isUuidCopied
                                 ? AppColors.success.withOpacity(0.12)
                                 : AppColors.primary.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color:
-                              isTokenCopied
+                              isUuidCopied
                                   ? AppColors.success.withOpacity(0.3)
                                   : AppColors.primary.withOpacity(0.25),
                           width: 1,
@@ -697,19 +826,19 @@ class _SettingsScreenState extends State<SettingsScreen>
                       child: Row(
                         children: [
                           Icon(
-                            isTokenCopied ? Icons.check : Icons.copy,
+                            isUuidCopied ? Icons.check : Icons.copy,
                             size: 14,
                             color:
-                                isTokenCopied
+                                isUuidCopied
                                     ? AppColors.success
                                     : AppColors.primary,
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            isTokenCopied ? 'Copied' : 'Copy',
+                            isUuidCopied ? 'Copied' : 'Copy',
                             style: AppFonts.copyButton.copyWith(
                               color:
-                                  isTokenCopied
+                                  isUuidCopied
                                       ? AppColors.success
                                       : AppColors.primary,
                             ),
@@ -741,7 +870,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ],
                   ),
                   child: Text(
-                    displayToken,
+                    displayUuid,
                     style: AppFonts.monospace.copyWith(
                       height: 1.4,
                       color: AppColors.textPrimary.withOpacity(0.85),
@@ -749,24 +878,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 12,
-                      color: AppColors.textTertiary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Tap to copy your device token',
-                      style: AppFonts.tokenHint.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
