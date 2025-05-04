@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "554019837516",
+    "project_id": "push-bung-7ca29",
+    "storage_bucket": "push-bung-7ca29.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:554019837516:android:dbab699987b71f26f286e9",
+        "android_client_info": {
+          "package_name": "com.example.push_bung"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDK3rTwjVN3p4FJIK00baA8VxymeGPz16U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
