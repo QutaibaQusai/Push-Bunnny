@@ -250,6 +250,7 @@ class NotificationRepository {
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
     await _notificationsPlugin.show(
+      
       message.notification.hashCode,
       message.notification?.title,
       message.notification?.body,

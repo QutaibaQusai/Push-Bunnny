@@ -414,32 +414,30 @@ class _SettingsScreenState extends State<SettingsScreen>
       },
     );
   }
-
-  Widget _buildEmptySubscriptions() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.campaign, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'No channel subscriptions yet',
-              style: AppFonts.cardTitle.copyWith(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Subscribe to channel to receive topic notifications',
-              style: AppFonts.cardSubtitle,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+Widget _buildEmptySubscriptions() {
+  return Padding(
+    padding: const EdgeInsets.all(16),
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.campaign, size: 48, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            'No channel subscriptions yet',
+            style: AppFonts.cardTitle.copyWith(color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Subscribe to channel to receive topic notifications',
+            style: AppFonts.cardSubtitle,  // This remains smaller as it's already using cardSubtitle
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _buildErrorWidget(String message) {
     return Padding(
       padding: const EdgeInsets.all(16),

@@ -66,7 +66,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon/app_icon.png"
+  image_path: "assets/icon/Icon-512.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
 
 
 # For information on the generic Dart part of this file, see the
@@ -85,6 +87,8 @@ flutter:
     - assets/
     - assets/iconWhite.png    
     - assets/push_punny.jpg
+    - assets/splash_screen_gradient_with_bunny.png
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

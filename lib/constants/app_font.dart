@@ -58,7 +58,7 @@ static const double small = 12.0;
 
   // Card subtitle (e.g., "Receive push notifications...")
   static TextStyle get cardSubtitle => GoogleFonts.inter(
-    fontSize: bodySmall,
+    fontSize: small,
     fontWeight: regular,
     letterSpacing: letterSpacingNormal,
     height: lineHeightNormal,
