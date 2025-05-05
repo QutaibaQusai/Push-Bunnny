@@ -16,6 +16,7 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
   importance: Importance.max,
   playSound: true,
 );
+
 Future<void> saveNotificationToFirestore(
   RemoteMessage message,
   String appState,
@@ -157,17 +158,26 @@ class NotificationRepository {
   }
 
   Future<void> _setupLocalNotifications() async {
-    // Create the notification channel
+    // Create the notification channel for Android
     await _notificationsPlugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(channel);
 
+    // Configure initialization settings for both platforms
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
+        
+    const DarwinInitializationSettings iOSSettings = DarwinInitializationSettings(
+      requestSoundPermission: true,
+      requestBadgePermission: true,
+      requestAlertPermission: true,
+    );
+    
     const InitializationSettings settings = InitializationSettings(
       android: androidSettings,
+      iOS: iOSSettings,
     );
 
     await _notificationsPlugin.initialize(
@@ -250,6 +260,11 @@ class NotificationRepository {
           importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
         ),
       ),
       payload: 'notification_history',

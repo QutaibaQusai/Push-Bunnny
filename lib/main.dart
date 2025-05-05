@@ -30,15 +30,14 @@ void main() async {
   // Initialize Firebase first
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // Set up background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   // Initialize Hive for local storage
   final hiveService = HiveDatabaseService();
   await hiveService.initHive();
 
-  // Set up background message handler
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
   // Initialize AuthService to ensure we have a user ID ready
-  // This now uses UUID and SharedPreferences for persistence
   final authService = AuthService();
   final userId = await authService.getUserId();
   
