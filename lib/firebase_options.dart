@@ -41,46 +41,47 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDwpK4SfvLOMI0rpPSswUdW1XYFMIXuJss',
-    appId: '1:554019837516:web:9d520072e6f915d7f286e9',
-    messagingSenderId: '554019837516',
-    projectId: 'push-bung-7ca29',
-    authDomain: 'push-bung-7ca29.firebaseapp.com',
-    storageBucket: 'push-bung-7ca29.firebasestorage.app',
+    apiKey: 'AIzaSyCaJj6uVC_AAOci6-EoUUOQoW1jzUnV9s0',
+    appId: '1:632612758944:web:5fa9f38697a04d107830c5',
+    messagingSenderId: '632612758944',
+    projectId: 'push-punny',
+    authDomain: 'push-punny.firebaseapp.com',
+    storageBucket: 'push-punny.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDK3rTwjVN3p4FJIK00baA8VxymeGPz16U',
-    appId: '1:554019837516:android:dbab699987b71f26f286e9',
-    messagingSenderId: '554019837516',
-    projectId: 'push-bung-7ca29',
-    storageBucket: 'push-bung-7ca29.firebasestorage.app',
+    apiKey: 'AIzaSyD0pzKinpLE4uj8Eyf1k-v-MU-LuybB5qw',
+    appId: '1:632612758944:android:1bff8ca7f16fbdeb7830c5',
+    messagingSenderId: '632612758944',
+    projectId: 'push-punny',
+    storageBucket: 'push-punny.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDRX4lTD_PeZJoNcUupDJrvRb5tajJN41E',
-    appId: '1:554019837516:ios:a3c72da59ddfc2d3f286e9',
-    messagingSenderId: '554019837516',
-    projectId: 'push-bung-7ca29',
-    storageBucket: 'push-bung-7ca29.firebasestorage.app',
+    apiKey: 'AIzaSyDenlX7XG5XevOIiBLM2PH3Mz4qdSWJwCM',
+    appId: '1:632612758944:ios:e1d7d217848d28d37830c5',
+    messagingSenderId: '632612758944',
+    projectId: 'push-punny',
+    storageBucket: 'push-punny.firebasestorage.app',
     iosBundleId: 'com.example.pushBung',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDRX4lTD_PeZJoNcUupDJrvRb5tajJN41E',
-    appId: '1:554019837516:ios:a3c72da59ddfc2d3f286e9',
-    messagingSenderId: '554019837516',
-    projectId: 'push-bung-7ca29',
-    storageBucket: 'push-bung-7ca29.firebasestorage.app',
+    apiKey: 'AIzaSyDenlX7XG5XevOIiBLM2PH3Mz4qdSWJwCM',
+    appId: '1:632612758944:ios:e1d7d217848d28d37830c5',
+    messagingSenderId: '632612758944',
+    projectId: 'push-punny',
+    storageBucket: 'push-punny.firebasestorage.app',
     iosBundleId: 'com.example.pushBung',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDwpK4SfvLOMI0rpPSswUdW1XYFMIXuJss',
-    appId: '1:554019837516:web:5da05eff74491609f286e9',
-    messagingSenderId: '554019837516',
-    projectId: 'push-bung-7ca29',
-    authDomain: 'push-bung-7ca29.firebaseapp.com',
-    storageBucket: 'push-bung-7ca29.firebasestorage.app',
+    apiKey: 'AIzaSyCaJj6uVC_AAOci6-EoUUOQoW1jzUnV9s0',
+    appId: '1:632612758944:web:d107b422d2d196cc7830c5',
+    messagingSenderId: '632612758944',
+    projectId: 'push-punny',
+    authDomain: 'push-punny.firebaseapp.com',
+    storageBucket: 'push-punny.firebasestorage.app',
   );
+
 }
