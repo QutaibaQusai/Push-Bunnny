@@ -114,12 +114,18 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter a channel name';
                   }
-                  if (value.contains(' ')) {
-                    return 'Channel name cannot contain spaces';
+
+                  // Only allow alphanumeric characters and underscores
+                  final validCharacters = RegExp(r'^[a-zA-Z0-9_]+$');
+
+                  if (!validCharacters.hasMatch(value)) {
+                    return 'Only letters, numbers, and underscores are allowed';
                   }
+
                   return null;
                 },
               ),
+
               if (_errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -142,7 +148,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
                           _errorMessage!,
                           style: TextStyle(
                             color: Colors.red.shade700,
-                            fontSize: AppFonts.bodySmall, 
+                            fontSize: AppFonts.bodySmall,
                           ),
                         ),
                       ),
