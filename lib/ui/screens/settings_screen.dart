@@ -286,20 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           children: [
             _buildSectionTitle('Device Settings'),
             _buildDeviceTokenCard(),
-            const SizedBox(height: 16),
-            _buildSectionTitle('Notification Settings'),
-            _buildSettingCard(
-              'Enable Notifications',
-              'Get Push Bunny notifications',
-              Icons.notifications_outlined,
-              isToggle: true,
-              initialToggleValue: _notificationsEnabled,
-              onToggleChanged: (value) {
-                setState(() {
-                  _notificationsEnabled = value;
-                });
-              },
-            ),
+
             const SizedBox(height: 16),
             _buildGroupSubscriptionSection(),
             _buildSectionTitle('Data Management'),

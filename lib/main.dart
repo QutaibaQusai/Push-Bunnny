@@ -15,8 +15,6 @@ import 'package:push_bunnny/ui/screens/settings_screen.dart';
 import 'package:push_bunnny/ui/theme/app_theme.dart';
 
 // Background message handler
-// Update in lib/main.dart
-
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
@@ -68,7 +66,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } catch (e) {
     debugPrint('Error in background message handler: $e');
   }
-} 
+}
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -96,7 +94,7 @@ void main() async {
 
   // Configure route names
   AppRouter.routes = {
-    AppRouter.home: (context) => const NotificationHistoryScreen(),
+    // Don't include home route since we're using 'home' in MaterialApp
     AppRouter.notifications: (context) => const NotificationHistoryScreen(),
     AppRouter.settings: (context) => const SettingsScreen(),
     AppRouter.about: (context) => const AboutScreen(),
@@ -126,7 +124,7 @@ class MyApp extends StatelessWidget {
       title: 'Push Bunny',
       theme: AppTheme.lightTheme,
       navigatorKey: AppRouter.navigatorKey,
-      initialRoute: AppRouter.notifications,
+      home: const NotificationHistoryScreen(),
       routes: AppRouter.routes,
     );
   }
