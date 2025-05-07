@@ -1,89 +1,118 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:push_bunnny/auth_service.dart';
-import 'package:push_bunnny/migration_helper.dart';
-import 'package:push_bunnny/repositories/notification_repository.dart.dart';
-import 'package:push_bunnny/screens/notification_history_screen.dart';
-import 'package:push_bunnny/services/data_sync_servic.dart';
-import 'package:push_bunnny/services/hive_database_service.dart';
-import 'firebase_options.dart';
+import 'package:provider/provider.dart';
+import 'package:push_bunnny/core/config/firebase_options.dart';
+import 'package:push_bunnny/core/services/local_storage_service.dart';
+import 'package:push_bunnny/features/auth/services/auth_service.dart';
+import 'package:push_bunnny/features/notifications/providers/notification_provider.dart';
+import 'package:push_bunnny/features/notifications/repositories/notification_repository.dart';
+import 'package:push_bunnny/features/notifications/services/notification_service.dart';
+import 'package:push_bunnny/ui/routes/routes.dart';
+import 'package:push_bunnny/ui/screens/about_screen.dart';
+import 'package:push_bunnny/ui/screens/notification_history_screen.dart';
+import 'package:push_bunnny/ui/screens/settings_screen.dart';
+import 'package:push_bunnny/ui/theme/app_theme.dart';
 
-// Global navigator key
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
+// Background message handler
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // Initialize Hive for background handler
-  final hiveService = HiveDatabaseService();
-  await hiveService.initHive();
-
-  // Save notification to Firestore even when app is in background
-  await saveNotificationToFirestore(message, 'background');
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    // Initialize Firebase
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    
+    final String messageId = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+    debugPrint('Background message received: $messageId');
+    
+    // Check if this is a group notification
+    final bool isGroupNotification = message.data.containsKey('groupId');
+    if (isGroupNotification) {
+      debugPrint('Background message is a group notification for group: ${message.data['groupId']}');
+    }
+    
+    // Initialize local storage
+    final storageService = LocalStorageService();
+    await storageService.initialize();
+    
+    // Get userId
+    final authService = AuthService();
+    await authService.initialize();
+    final userId = authService.userId;
+    
+    if (userId != null) {
+      // Save notification
+      final repository = NotificationRepository();
+      await repository.saveNotification(
+        message: message,
+        userId: userId,
+        appState: 'background',
+      );
+      
+      debugPrint('Background notification saved for userId: $userId');
+    }
+  } catch (e) {
+    debugPrint('Error in background message handler: $e');
+  }
 }
 
 void main() async {
+  // Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  // Add this line for iOS
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-  
 
-  // Initialize Firebase first
+  // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Set up background message handler
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize Hive for local storage
-  final hiveService = HiveDatabaseService();
-  await hiveService.initHive();
+  // Initialize services in correct order
+  final storageService = LocalStorageService();
+  await storageService.initialize();
 
-  // Initialize AuthService to ensure we have a user ID ready
   final authService = AuthService();
-  final userId = await authService.getUserId();
-  
-  // Set up token refresh listener and update the device info
-  authService.setupTokenRefreshListener();
-  await authService.updateDeviceInfo();
-  
-  // Perform migration if needed
-  await MigrationHelper.migrateUserData(userId);
+  await authService.initialize();
 
-  // Initialize notification repository
-  final notificationRepository = NotificationRepository();
-  await notificationRepository.initialize();
-  
-  // Initialize data sync service for offline support
-  final dataSyncService = DataSyncService();
-  await dataSyncService.initialize();
+  final notificationService = NotificationService();
+  await notificationService.initialize();
 
-  runApp(const MyApp());
+  // Log current FCM token for debugging
+  final token = await FirebaseMessaging.instance.getToken();
+  debugPrint('FCM Token: ${token?.substring(0, 10)}...');
+
+  // Configure route names
+  AppRouter.routes = {
+    AppRouter.home: (context) => const NotificationHistoryScreen(),
+    AppRouter.notifications: (context) => const NotificationHistoryScreen(),
+    AppRouter.settings: (context) => const SettingsScreen(),
+    AppRouter.about: (context) => const AboutScreen(),
+  };
+
+  // Add debug logs
+  debugPrint('App initialized successfully');
+
+  // Run the app
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey,
       title: 'Push Bunny',
-      theme: ThemeData(
-        primarySwatch: Colors.orange,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-      ),
-      home: const NotificationHistoryScreen(),
+      theme: AppTheme.lightTheme,
+      navigatorKey: AppRouter.navigatorKey,
+      initialRoute: AppRouter.notifications,
+      routes: AppRouter.routes,
     );
   }
 }
