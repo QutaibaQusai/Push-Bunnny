@@ -18,7 +18,7 @@ class NotificationService {
   final NotificationRepository _repository = NotificationRepository();
   final AuthService _authService = AuthService();
 
-  // Notification channel for Android
+  // Notification channel for Android with max importance
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'high_importance_channel',
     'High Importance Notifications',
@@ -26,7 +26,12 @@ class NotificationService {
     importance: Importance.max,
     playSound: true,
     enableLights: true,
+    enableVibration: true,
+    showBadge: true,
   );
+
+  // Store processed notification ids to prevent duplicates
+  final Set<String> _processedNotificationIds = {};
 
   // Stream controller for new notifications
   final _onMessageController = StreamController<RemoteMessage>.broadcast();
@@ -44,14 +49,13 @@ class NotificationService {
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS initialization settings with proper alert permissions
-    // Updated to remove the problematic parameter
-    final DarwinInitializationSettings
-    iOSSettings = DarwinInitializationSettings(
-      requestSoundPermission: true,
-      requestBadgePermission: true,
-      requestAlertPermission: true,
-      // Removed the onDidReceiveLocalNotification parameter that was causing the error
-    );
+    final DarwinInitializationSettings iOSSettings =
+        DarwinInitializationSettings(
+          requestSoundPermission: true,
+          requestBadgePermission: true,
+          requestAlertPermission: true,
+          // Remove the deprecated onDidReceiveLocalNotification parameter
+        );
 
     // Combined initialization settings
     final InitializationSettings initSettings = InitializationSettings(
@@ -65,36 +69,24 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Create notification channel on Android with high importance
+    // Create notification channel on Android with max importance
     await _createNotificationChannel();
   }
 
   Future<void> _createNotificationChannel() async {
     if (Platform.isAndroid) {
-      // Set the channel to max importance to ensure it shows as a pop-up
-      const AndroidNotificationChannel channel = AndroidNotificationChannel(
-        'high_importance_channel',
-        'High Importance Notifications',
-        description: 'This channel is used for important notifications.',
-        importance: Importance.max,
-        playSound: true,
-        enableLights: true,
-        enableVibration: true,
-        showBadge: true,
-      );
-
       await _localNotifications
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >()
-          ?.createNotificationChannel(channel);
+          ?.createNotificationChannel(_channel);
 
       debugPrint('Android notification channel created with max importance');
     }
   }
 
   Future<void> _requestPermissions() async {
-    // Request permission for iOS with provisional permission option
+    // Request permission for iOS
     if (Platform.isIOS) {
       await _localNotifications
           .resolvePlatformSpecificImplementation<
@@ -104,10 +96,10 @@ class NotificationService {
             alert: true,
             badge: true,
             sound: true,
-            critical: true,
+            critical: true, // Request critical alerts for higher priority
           );
 
-      // For iOS 10+ we need to set presentation options
+      // For iOS 10+ set presentation options
       await _messaging.setForegroundNotificationPresentationOptions(
         alert: true, // Shows the notification banner when in foreground
         badge: true, // Updates the app's badge count
@@ -115,13 +107,14 @@ class NotificationService {
       );
     }
 
-    // Request FCM permissions with provisional option
+    // Request FCM permissions with higher priority options
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
       provisional: true, // Uses provisional authorization on iOS
-      criticalAlert: true, // Request critical alert permission
+      criticalAlert:
+          true, // Request critical alert permission for high priority
       announcement: true, // Request announcement capability
     );
 
@@ -148,7 +141,7 @@ class NotificationService {
       await _handleInitialMessage(initialMessage);
     }
 
-    // Enable delivering messages in the background - essential for background notifications
+    // Enable delivering messages in the background
     if (Platform.isIOS) {
       // For iOS
       await FirebaseMessaging.instance
@@ -169,16 +162,17 @@ class NotificationService {
     final String groupId = message.data['groupId'] ?? 'default_group';
     final String groupName = message.data['groupName'] ?? 'Notifications';
 
-    // Android notification details with max priority
+    // Android notification details with max priority for heads-up display
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
-          'high_importance_channel',
-          'High Importance Notifications',
-          channelDescription:
-              'This channel is used for important notifications.',
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
           showWhen: true,
+          visibility:
+              NotificationVisibility.public, // Make visible on lock screen
           icon: '@mipmap/ic_launcher',
           largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           styleInformation: BigTextStyleInformation(
@@ -193,7 +187,9 @@ class NotificationService {
           playSound: true,
           enableLights: true,
           enableVibration: true,
-          fullScreenIntent: true, // This helps with pop-up visibility
+          ticker: notification.title, // For accessibility services
+          fullScreenIntent: true, // This is critical for heads-up display
+          category: AndroidNotificationCategory.message, // Set as message type
         );
 
     // iOS notification details with critical alert option
@@ -203,10 +199,10 @@ class NotificationService {
       presentSound: true, // Plays a sound
       sound: 'default', // Use the default sound
       badgeNumber: 1, // Set badge number
-      // Group settings for iOS
       threadIdentifier: isGroupNotification ? groupId : null,
       interruptionLevel:
           InterruptionLevel.active, // High priority interruption level
+      categoryIdentifier: "message", // Set as message category
     );
 
     // Combined platform-specific details
@@ -215,20 +211,51 @@ class NotificationService {
       iOS: iOSDetails,
     );
 
+    // Generate a unique ID for this notification based on the message ID
+    final notificationId = message.messageId?.hashCode ?? notification.hashCode;
+
     // Show the notification
     await _localNotifications.show(
-      notification.hashCode,
+      notificationId,
       notification.title,
       notification.body,
       platformDetails,
       payload: message.data['payload'] ?? message.messageId,
     );
+
+    debugPrint(
+      'Local notification displayed with title: ${notification.title}',
+    );
+  }
+
+  // Check if we've already processed this notification
+  bool _hasProcessedNotification(String messageId) {
+    return _processedNotificationIds.contains(messageId);
+  }
+
+  // Mark a notification as processed
+  void _markNotificationAsProcessed(String messageId) {
+    _processedNotificationIds.add(messageId);
+
+    // Limit the set size to prevent memory issues
+    if (_processedNotificationIds.length > 100) {
+      _processedNotificationIds.remove(_processedNotificationIds.first);
+    }
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     final messageId =
         message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
     debugPrint('Handling foreground message: $messageId');
+
+    // Check if we've already processed this notification
+    if (_hasProcessedNotification(messageId)) {
+      debugPrint('Skipping already processed notification: $messageId');
+      return;
+    }
+
+    // Mark as processed
+    _markNotificationAsProcessed(messageId);
 
     // Forward to the message stream
     _onMessageController.add(message);
@@ -252,6 +279,15 @@ class NotificationService {
         message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
     debugPrint('Handling message opened app: $messageId');
 
+    // Check if we've already processed this notification
+    if (_hasProcessedNotification(messageId)) {
+      debugPrint('Skipping already processed notification: $messageId');
+      return;
+    }
+
+    // Mark as processed
+    _markNotificationAsProcessed(messageId);
+
     // Save to repository
     final userId = _authService.userId;
     if (userId != null) {
@@ -271,6 +307,15 @@ class NotificationService {
         message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
     debugPrint('Handling initial message: $messageId');
 
+    // Check if we've already processed this notification
+    if (_hasProcessedNotification(messageId)) {
+      debugPrint('Skipping already processed notification: $messageId');
+      return;
+    }
+
+    // Mark as processed
+    _markNotificationAsProcessed(messageId);
+
     // Save to repository
     final userId = _authService.userId;
     if (userId != null) {
@@ -288,23 +333,12 @@ class NotificationService {
     AppRouter.navigateToNotificationHistory();
   }
 
-  void _onDidReceiveLocalNotification(
-    int id,
-    String? title,
-    String? body,
-    String? payload,
-  ) {
-    debugPrint('Received iOS local notification: $title');
-    // This is only called on iOS versions < 10
-  }
-
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Notification tapped: ${response.payload}');
 
     // If payload contains messageId, process it accordingly
     if (response.payload != null) {
-      // Here you can handle navigation or other actions
-      // when notification is tapped
+      // Navigate to notification history
       AppRouter.navigateToNotificationHistory();
     }
   }
@@ -330,14 +364,16 @@ class NotificationService {
     return topic.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
   }
 
-  Future<void> resetBadgeCount() async {
-    if (Platform.isIOS) {
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >();
-    }
-  }
+  // Future<void> resetBadgeCount() async {
+  //   if (Platform.isIOS) {
+  //     // Use the correct method to reset badge count
+  //     await _localNotifications
+  //         .resolvePlatformSpecificImplementation<
+  //           IOSFlutterLocalNotificationsPlugin
+  //         >()
+  //         ?.clearBadgeNumber();
+  //   }
+  // }
 
   void dispose() {
     _onMessageController.close();

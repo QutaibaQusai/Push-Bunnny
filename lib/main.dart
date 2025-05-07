@@ -15,30 +15,45 @@ import 'package:push_bunnny/ui/screens/settings_screen.dart';
 import 'package:push_bunnny/ui/theme/app_theme.dart';
 
 // Background message handler
+// Update in lib/main.dart
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     // Initialize Firebase
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    
-    final String messageId = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    final String messageId =
+        message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
     debugPrint('Background message received: $messageId');
-    
+
     // Check if this is a group notification
     final bool isGroupNotification = message.data.containsKey('groupId');
     if (isGroupNotification) {
-      debugPrint('Background message is a group notification for group: ${message.data['groupId']}');
+      debugPrint(
+        'Background message is a group notification for group: ${message.data['groupId']}',
+      );
     }
-    
+
     // Initialize local storage
     final storageService = LocalStorageService();
     await storageService.initialize();
-    
+
+    // Check for duplicate notifications before saving
+    if (storageService.hasNotificationWithMessageId(messageId)) {
+      debugPrint(
+        'Background message already exists in storage, skipping: $messageId',
+      );
+      return;
+    }
+
     // Get userId
     final authService = AuthService();
     await authService.initialize();
     final userId = authService.userId;
-    
+
     if (userId != null) {
       // Save notification
       final repository = NotificationRepository();
@@ -47,13 +62,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         userId: userId,
         appState: 'background',
       );
-      
+
       debugPrint('Background notification saved for userId: $userId');
     }
   } catch (e) {
     debugPrint('Error in background message handler: $e');
   }
-}
+} 
 
 void main() async {
   // Ensure Flutter binding is initialized

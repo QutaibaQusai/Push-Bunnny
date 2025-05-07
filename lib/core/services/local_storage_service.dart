@@ -1,7 +1,27 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:push_bunnny/features/notifications/models/notification_model.dart';
+
+/// Custom Hive adapter for Firestore Timestamp
+class TimestampAdapter extends TypeAdapter<Timestamp> {
+  @override
+  final int typeId = 1;
+
+  @override
+  Timestamp read(BinaryReader reader) {
+    final seconds = reader.readInt();
+    final nanoseconds = reader.readInt();
+    return Timestamp(seconds, nanoseconds);
+  }
+
+  @override
+  void write(BinaryWriter writer, Timestamp obj) {
+    writer.writeInt(obj.seconds);
+    writer.writeInt(obj.nanoseconds);
+  }
+}
 
 class LocalStorageService {
   static final LocalStorageService _instance = LocalStorageService._internal();
@@ -22,7 +42,9 @@ class LocalStorageService {
       await Hive.initFlutter(appDocDir.path);
 
       // Register adapters if using custom Hive objects
-      // This implementation uses Map-based storage for simplicity
+      if (!Hive.isAdapterRegistered(1)) {
+        Hive.registerAdapter(TimestampAdapter());
+      }
 
       // Open boxes
       await Hive.openBox<Map<dynamic, dynamic>>(notificationsBoxName);
@@ -41,7 +63,12 @@ class LocalStorageService {
   Future<void> saveNotification(NotificationModel notification) async {
     try {
       final box = Hive.box<Map<dynamic, dynamic>>(notificationsBoxName);
-      await box.put(notification.id, notification.toMap());
+      
+      // Ensure timestamp is always saved as ISO8601 string for consistency
+      final notificationMap = notification.toMap();
+      
+      await box.put(notification.id, notificationMap);
+      debugPrint('Notification saved to local storage: ${notification.id}');
     } catch (e) {
       debugPrint('Error saving notification to local storage: $e');
     }
@@ -56,8 +83,14 @@ class LocalStorageService {
       final notification = box.get(id);
 
       if (notification != null) {
+        // Handle timestamp conversions for updates
+        if (updates.containsKey('readAt') && updates['readAt'] is Timestamp) {
+          updates['readAt'] = (updates['readAt'] as Timestamp).toDate().toIso8601String();
+        }
+        
         notification.addAll(updates);
         await box.put(id, notification);
+        debugPrint('Notification updated: $id');
       }
     } catch (e) {
       debugPrint('Error updating notification in local storage: $e');
@@ -68,6 +101,7 @@ class LocalStorageService {
     try {
       final box = Hive.box<Map<dynamic, dynamic>>(notificationsBoxName);
       await box.delete(id);
+      debugPrint('Notification deleted: $id');
     } catch (e) {
       debugPrint('Error deleting notification from local storage: $e');
     }
@@ -136,10 +170,35 @@ class LocalStorageService {
       for (var key in keysToDelete) {
         await box.delete(key);
       }
+      debugPrint('All notifications deleted for user: $userId');
     } catch (e) {
       debugPrint('Error deleting all notifications from local storage: $e');
     }
   }
+
+ 
+bool hasNotificationWithMessageId(String messageId) {
+  try {
+    final box = Hive.box<Map<dynamic, dynamic>>(notificationsBoxName);
+    
+    // Use a more thorough approach to check all notifications
+    for (var notification in box.values) {
+      if (notification != null) {
+        final msgId = notification['messageId'];
+        if (msgId != null && msgId == messageId) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  } catch (e) {
+    debugPrint('Error checking notification by messageId: $e');
+    // If there's an error, return false to be safe (may cause duplicate, but better than missing)
+    return false;
+  }
+}
+
 
   // User preferences methods
   Future<void> saveUserId(String userId) async {
@@ -220,18 +279,6 @@ class LocalStorageService {
       return box.containsKey(key);
     } catch (e) {
       debugPrint('Error checking subscription in local storage: $e');
-      return false;
-    }
-  }
-
-  bool hasNotificationWithMessageId(String messageId) {
-    try {
-      final box = Hive.box<Map<dynamic, dynamic>>(notificationsBoxName);
-      return box.values.any(
-        (notification) => notification['messageId'] == messageId,
-      );
-    } catch (e) {
-      debugPrint('Error checking notification by messageId: $e');
       return false;
     }
   }

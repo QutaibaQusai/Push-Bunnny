@@ -15,8 +15,9 @@ class NotificationRepository {
   final LocalStorageService _storage = LocalStorageService();
   final ConnectivityHelper _connectivity = ConnectivityHelper();
   
-  // Save a new notification from FCM message
- Future<void> saveNotification({
+// lib/features/notifications/repositories/notification_repository.dart (updated for saveNotification method)
+
+Future<void> saveNotification({
   required RemoteMessage message,
   required String userId,
   required String appState,
@@ -24,7 +25,7 @@ class NotificationRepository {
   try {
     // Extract messageId - this is the key for preventing duplicates
     final String messageId = message.messageId ?? 
-                             DateTime.now().millisecondsSinceEpoch.toString();
+                           DateTime.now().millisecondsSinceEpoch.toString();
     
     // Check if this notification already exists in local storage
     if (_storage.hasNotificationWithMessageId(messageId)) {
@@ -49,13 +50,14 @@ class NotificationRepository {
     final Map<String, dynamic> combinedData = {...data};
     combinedData['messageId'] = messageId;
     
-    // Create notification model
+    // Create notification model with current DateTime for local storage
+    // This avoids the Timestamp issue
     final notificationModel = NotificationModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(), // Temp ID for local storage
       userId: userId,
       title: title,
       body: body,
-      timestamp: DateTime.now(),
+      timestamp: DateTime.now(), // Use DateTime.now() instead of Timestamp
       imageUrl: imageUrl,
       groupId: groupId,
       groupName: groupName,
@@ -107,6 +109,7 @@ class NotificationRepository {
     debugPrint('Error saving notification: $e');
   }
 }
+ 
   // Get all notifications for a user
   Stream<List<NotificationModel>> getUserNotifications(String userId) {
     return _firestore
