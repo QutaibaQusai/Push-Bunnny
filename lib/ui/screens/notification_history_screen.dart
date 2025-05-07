@@ -9,7 +9,7 @@ import 'package:push_bunnny/features/notifications/services/group_subscription_s
 import 'package:push_bunnny/ui/routes/routes.dart';
 import 'package:push_bunnny/ui/widgets/notification_card.dart';
 import 'package:push_bunnny/ui/widgets/notification_details_sheet.dart';
-
+import 'package:push_bunnny/ui/widgets/standard_alert_dialog.dart';
 
 class NotificationHistoryScreen extends StatelessWidget {
   const NotificationHistoryScreen({Key? key}) : super(key: key);
@@ -18,37 +18,48 @@ class NotificationHistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('HH:mm');
     final provider = Provider.of<NotificationProvider>(context);
-    
+
     return Scaffold(
       appBar: _buildAppBar(),
       body: Container(
         color: AppColors.background,
-        child: provider.isLoading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
-            : Column(
-                children: [
-                  _buildGroupFilterSection(context, provider),
-                  Expanded(
-                    child: provider.notifications.isEmpty
-                        ? _buildEmptyWidget()
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(0, 8, 0, 26),
-                            itemCount: provider.notifications.length,
-                            itemBuilder: (context, index) {
-                              final notification = provider.notifications[index];
-                              return NotificationCard(
-                                notification: notification,
-                                dateFormat: dateFormat,
-                                onDelete: () => _confirmDelete(context, notification.id, provider),
-                                onTap: () => _showDetailsSheet(context, notification, provider),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
+
+        child:
+            provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                  children: [
+                    _buildGroupFilterSection(context, provider),
+                    Expanded(
+                      child:
+                          provider.notifications.isEmpty
+                              ? _buildEmptyWidget()
+                              : ListView.builder(
+                                itemCount: provider.notifications.length,
+                                itemBuilder: (context, index) {
+                                  final notification =
+                                      provider.notifications[index];
+                                  return NotificationCard(
+                                    notification: notification,
+                                    dateFormat: dateFormat,
+                                    onDelete:
+                                        () => _confirmDelete(
+                                          context,
+                                          notification.id,
+                                          provider,
+                                        ),
+                                    onTap:
+                                        () => _showDetailsSheet(
+                                          context,
+                                          notification,
+                                          provider,
+                                        ),
+                                  );
+                                },
+                              ),
+                    ),
+                  ],
+                ),
       ),
     );
   }
@@ -60,10 +71,7 @@ class NotificationHistoryScreen extends StatelessWidget {
         children: [
           Image.asset('assets/iconWhite.png', height: 24, width: 24),
           const SizedBox(width: 7),
-          Text(
-            'Push Bunny',
-            style: AppFonts.appBarTitle,
-          ),
+          Text('Push Bunny', style: AppFonts.appBarTitle),
         ],
       ),
       flexibleSpace: Container(
@@ -89,7 +97,10 @@ class NotificationHistoryScreen extends StatelessWidget {
     );
   }
 
- Widget _buildGroupFilterSection(BuildContext context, NotificationProvider provider) {
+  Widget _buildGroupFilterSection(
+    BuildContext context,
+    NotificationProvider provider,
+  ) {
     return StreamBuilder<List<GroupSubscriptionModel>>(
       stream: GroupSubscriptionService().getUserSubscribedGroups(),
       builder: (context, snapshot) {
@@ -158,15 +169,16 @@ class NotificationHistoryScreen extends StatelessWidget {
             color: isSelected ? Colors.transparent : Colors.grey.shade300,
             width: 1,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -190,35 +202,27 @@ class NotificationHistoryScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, String notificationId, NotificationProvider provider) async {
-    final bool confirmed = await showDialog<bool>(
+  Future<void> _confirmDelete(
+    BuildContext context,
+    String notificationId,
+    NotificationProvider provider,
+  ) async {
+    final bool confirmed =
+        await showDialog<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Delete Message', style: AppFonts.sectionTitle),
-            content: Text(
-              'This message will be removed from this device.',
-              style: AppFonts.listItemSubtitle,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel', style: TextStyle(color: AppColors.textTertiary)),
+          builder:
+              (context) => const StandardAlertDialog(
+                title: 'Delete Message',
+                content: 'This message will be removed from this device.',
+                cancelText: 'Cancel',
+                confirmText: 'Delete',
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        ) ?? false;
+        ) ??
+        false;
 
     if (confirmed) {
       await provider.deleteNotification(notificationId);
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -231,17 +235,22 @@ class NotificationHistoryScreen extends StatelessWidget {
     }
   }
 
-  void _showDetailsSheet(BuildContext context, dynamic notification, NotificationProvider provider) {
+  void _showDetailsSheet(
+    BuildContext context,
+    dynamic notification,
+    NotificationProvider provider,
+  ) {
     // Mark as read when opened
     if (!notification.isRead) {
       provider.markAsRead(notification.id);
     }
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => NotificationDetailsSheet(notification: notification),
+      builder:
+          (context) => NotificationDetailsSheet(notification: notification),
     );
   }
 

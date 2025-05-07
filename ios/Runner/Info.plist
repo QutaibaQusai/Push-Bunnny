@@ -38,7 +38,7 @@
 		<key>UIMainStoryboardFile</key>
 		<string>Main</string>
 		<key>UIStatusBarHidden</key>
-		<true/>
+		<false/>
 		<key>UISupportedInterfaceOrientations</key>
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
@@ -60,21 +60,16 @@
 		</array>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
-		
 		<!-- Added for iOS notification handling -->
 		<key>FirebaseAppDelegateProxyEnabled</key>
 		<true/>
-		
 		<!-- Permission descriptions for iOS -->
 		<key>NSCameraUsageDescription</key>
 		<string>This app needs camera access to scan QR codes</string>
-		
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>This app requires access to the photo library to upload images</string>
-		
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app requires microphone access for voice notes</string>
-		
 		<!-- Critical notifications permission -->
 		<key>NSCriticalAlertEntitlement</key>
 		<true/>

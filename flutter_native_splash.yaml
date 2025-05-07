@@ -1,7 +1,9 @@
 # file: flutter_native_splash.yaml
 flutter_native_splash:
+  color: "#FFB300"
+  image: assets/android 12 splash screen.png
   # The combined image with gradient background and bunny icon
-  background_image: "assets/splash_screen_gradient_with_bunny.png"
+  # background_image: "assets/splash_screen_gradient_with_bunny.png"
   
   # iOS settings - keep default center
   ios_content_mode: center
@@ -17,12 +19,10 @@ flutter_native_splash:
   
   # Android 12+ settings
   android_12:
-    image: "assets/iconWhite.png"
-    color: "#FF8000"
-    icon_background_color: "#FFFFFF"
-    image_dark: "assets/icon/app_icon.png"
-    color_dark: "#FFB300"
-    icon_background_color_dark: "#FFFFFF"
+    image: assets/android 12 splash screen.png
+    color: "#FFB300"
+   
+   
   
   # Make image fill the screen
-  fullscreen: true
+  # fullscreen: true

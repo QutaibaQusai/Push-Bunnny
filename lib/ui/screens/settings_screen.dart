@@ -11,6 +11,7 @@ import 'package:push_bunnny/features/notifications/services/notification_service
 import 'package:push_bunnny/ui/routes/routes.dart';
 import 'package:push_bunnny/ui/widgets/group_subscription_card.dart';
 import 'package:push_bunnny/ui/widgets/group_subscription_dialog.dart';
+import 'package:push_bunnny/ui/widgets/standard_alert_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -129,29 +130,12 @@ class _SettingsScreenState extends State<SettingsScreen>
         await showDialog<bool>(
           context: context,
           builder:
-              (context) => AlertDialog(
-                title: Text('Unsubscribe', style: AppFonts.sectionTitle),
-                content: Text(
-                  'You will stop receiving notifications from this channel',
-                  style: AppFonts.listItemSubtitle,
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(color: AppColors.textTertiary),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Unsubscribe'),
-                  ),
-                ],
+              (context) => const StandardAlertDialog(
+                title: 'Unsubscribe',
+                content:
+                    'You will stop receiving notifications from this channel',
+                cancelText: 'Cancel',
+                confirmText: 'Unsubscribe',
               ),
         ) ??
         false;
@@ -194,32 +178,12 @@ class _SettingsScreenState extends State<SettingsScreen>
         await showDialog<bool>(
           context: context,
           builder:
-              (context) => AlertDialog(
-                title: Text(
-                  'Clear Notification History',
-                  style: AppFonts.sectionTitle,
-                ),
-                content: Text(
-                  'This will delete all your notification history. This action cannot be undone.',
-                  style: AppFonts.listItemSubtitle,
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(color: AppColors.textTertiary),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Clear'),
-                  ),
-                ],
+              (context) => const StandardAlertDialog(
+                title: 'Clear Notification History',
+                content:
+                    'This will delete all your notification history. This action cannot be undone.',
+                cancelText: 'Cancel',
+                confirmText: 'Clear',
               ),
         ) ??
         false;
