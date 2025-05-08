@@ -9,12 +9,27 @@ class TimestampAdapter extends TypeAdapter<Timestamp> {
   @override
   final int typeId = 1;
 
-  @override
-  Timestamp read(BinaryReader reader) {
+@override
+Timestamp read(BinaryReader reader) {
+  try {
     final seconds = reader.readInt();
     final nanoseconds = reader.readInt();
+    
+    // Validate ranges before creating Timestamp
+    if (seconds < 0 || seconds > 253402300799) { // Max valid timestamp
+      return Timestamp.now(); // Fallback to current time
+    }
+    
+    if (nanoseconds < 0 || nanoseconds > 999999999) {
+      return Timestamp(seconds, 0); // Use valid nanoseconds
+    }
+    
     return Timestamp(seconds, nanoseconds);
+  } catch (e) {
+    debugPrint('Error reading timestamp: $e');
+    return Timestamp.now(); // Fallback to current time
   }
+}
 
   @override
   void write(BinaryWriter writer, Timestamp obj) {
