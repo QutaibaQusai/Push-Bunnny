@@ -16,7 +16,6 @@ class NotificationRepository {
   final ConnectivityHelper _connectivity = ConnectivityHelper();
   
 // lib/features/notifications/repositories/notification_repository.dart (updated for saveNotification method)
-
 Future<void> saveNotification({
   required RemoteMessage message,
   required String userId,
@@ -25,7 +24,7 @@ Future<void> saveNotification({
   try {
     // Extract messageId - this is the key for preventing duplicates
     final String messageId = message.messageId ?? 
-                           DateTime.now().millisecondsSinceEpoch.toString();
+                         DateTime.now().millisecondsSinceEpoch.toString();
     
     // Check if this notification already exists in local storage
     if (_storage.hasNotificationWithMessageId(messageId)) {
@@ -41,6 +40,7 @@ Future<void> saveNotification({
     final String title = notification?.title ?? data['title'] ?? 'Notification';
     final String body = notification?.body ?? data['body'] ?? '';
     final String? imageUrl = notification?.android?.imageUrl ?? data['imageUrl'];
+    final String? link = data['link']; // Extract link from data
     
     // Extract group info (if any)
     final String? groupId = _extractGroupId(message);
@@ -64,6 +64,7 @@ Future<void> saveNotification({
       isRead: false,
       data: combinedData,
       messageId: messageId, // Store message ID for deduplication
+      link: link, // Add link to the model
     );
     
     // Save to local storage first
@@ -84,6 +85,7 @@ Future<void> saveNotification({
         'isRead': false,
         'appState': appState,
         'messageId': messageId, // Include messageId for deduplication
+        'link': link, // Include link in Firestore
       };
       
       // Add all data from message.data
@@ -109,7 +111,6 @@ Future<void> saveNotification({
     debugPrint('Error saving notification: $e');
   }
 }
- 
   // Get all notifications for a user
   Stream<List<NotificationModel>> getUserNotifications(String userId) {
     return _firestore

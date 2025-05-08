@@ -13,6 +13,7 @@ class NotificationModel {
   final DateTime? readAt;
   final Map<String, dynamic>? data;
   final String? messageId;
+  final String? link;
 
   NotificationModel({
     required this.id,
@@ -27,6 +28,7 @@ class NotificationModel {
     this.readAt,
     this.data,
     this.messageId,
+    this.link,
   });
 
   factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
@@ -73,6 +75,7 @@ class NotificationModel {
       readAt: readAt,
       data: Map<String, dynamic>.from(data),
       messageId: data['messageId'],
+      link: data['link'],
     );
   }
 
@@ -108,6 +111,7 @@ class NotificationModel {
       readAt: readAt,
       data: map['data'],
       messageId: map['messageId'],
+      link: map['link'],
     );
   }
 
@@ -117,7 +121,7 @@ class NotificationModel {
       'userId': userId,
       'title': title,
       'body': body,
-      'timestamp': timestamp.toIso8601String(), // Store as ISO string for Hive
+      'timestamp': timestamp.toIso8601String(),
       'imageUrl': imageUrl,
       'groupId': groupId,
       'groupName': groupName,
@@ -125,6 +129,7 @@ class NotificationModel {
       'readAt': readAt?.toIso8601String(),
       'data': data,
       'messageId': messageId,
+      'link': link,
     };
   }
 
@@ -141,6 +146,7 @@ class NotificationModel {
     DateTime? readAt,
     Map<String, dynamic>? data,
     String? messageId,
+    String? link,
   }) {
     return NotificationModel(
       id: id ?? this.id,
@@ -155,6 +161,7 @@ class NotificationModel {
       readAt: readAt ?? this.readAt,
       data: data ?? this.data,
       messageId: messageId ?? this.messageId,
+      link: link ?? this.link,
     );
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:push_bunnny/core/constants/app_colors.dart';
 import 'package:push_bunnny/core/constants/app_fonts.dart';
 import 'package:push_bunnny/features/notifications/models/notification_model.dart';
-
 
 class NotificationDetailsSheet extends StatelessWidget {
   final NotificationModel notification;
@@ -12,6 +12,21 @@ class NotificationDetailsSheet extends StatelessWidget {
     Key? key,
     required this.notification,
   }) : super(key: key);
+
+  Future<void> _launchURL(String? url) async {
+    if (url == null || url.isEmpty) return;
+    
+    try {
+      final Uri uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint('Could not launch URL: $url');
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,13 +187,41 @@ class NotificationDetailsSheet extends StatelessWidget {
   Widget _buildTimestamp() {
     return Padding(
       padding: const EdgeInsets.only(top: 20),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
-          const SizedBox(width: 4),
-          Text(
-            DateFormat('dd MMM yyyy • HH:mm').format(notification.timestamp),
-            style: AppFonts.timeStamp.copyWith(fontSize: AppFonts.caption),
+          // Add link button if link exists
+          if (notification.link != null && notification.link!.isNotEmpty)
+            InkWell(
+              onTap: () => _launchURL(notification.link),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.link, size: 14, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Open Link',
+                      style: AppFonts.listItemSubtitle.copyWith(
+                        fontSize: AppFonts.caption,
+                        color: AppColors.primary,
+                        fontWeight: AppFonts.medium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
+              const SizedBox(width: 4),
+              Text(
+                DateFormat('dd MMM yyyy • HH:mm').format(notification.timestamp),
+                style: AppFonts.timeStamp.copyWith(fontSize: AppFonts.caption),
+              ),
+            ],
           ),
         ],
       ),
