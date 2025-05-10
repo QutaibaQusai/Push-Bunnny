@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:push_bunnny/core/constants/app_colors.dart';
 import 'package:push_bunnny/core/constants/app_fonts.dart';
+import 'package:push_bunnny/core/utils/snackbar_helper.dart';
 import 'package:push_bunnny/features/notifications/services/group_subscription_service.dart';
-
 
 class GroupSubscriptionDialog extends StatefulWidget {
   const GroupSubscriptionDialog({Key? key}) : super(key: key);
@@ -32,10 +32,8 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
       });
 
       try {
-        // Use the group name as both ID and name
         final groupName = _groupNameController.text.trim();
 
-        // Check if already subscribed
         bool isAlreadySubscribed = await _groupSubscriptionService
             .isSubscribedToGroup(groupName);
         if (isAlreadySubscribed) {
@@ -49,7 +47,7 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
         await _groupSubscriptionService.subscribeToGroup(groupName, groupName);
 
         if (mounted) {
-          Navigator.of(context).pop(true); // Return success
+          Navigator.of(context).pop(true); 
         }
       } catch (e) {
         debugPrint('Error subscribing to group: $e');
@@ -58,6 +56,12 @@ class _GroupSubscriptionDialogState extends State<GroupSubscriptionDialog> {
             _isLoading = false;
             _errorMessage = 'Failed to subscribe: ${e.toString()}';
           });
+          
+          SnackbarHelper.showSnackBar(
+            context: context,
+            message: 'Error subscribing to channel',
+            backgroundColor: Colors.red,
+          );
         }
       }
     }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:push_bunnny/core/constants/app_colors.dart';
 import 'package:push_bunnny/core/constants/app_fonts.dart';
+import 'package:push_bunnny/core/utils/snackbar_helper.dart'; // Import the helper
 import 'package:push_bunnny/features/auth/services/auth_service.dart';
 import 'package:push_bunnny/features/notifications/models/group_subscription_model.dart';
 import 'package:push_bunnny/features/notifications/providers/notification_provider.dart';
@@ -75,15 +76,11 @@ class _SettingsScreenState extends State<SettingsScreen>
         _isTokenCopied = true;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Device token copied to clipboard',
-            style: AppFonts.snackBar,
-          ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-        ),
+      // Using the new SnackbarHelper
+      SnackbarHelper.showSnackBar(
+        context: context,
+        message: 'Device token copied to clipboard',
+        backgroundColor: AppColors.primary,
       );
 
       Future.delayed(const Duration(seconds: 2), () {
@@ -105,21 +102,11 @@ class _SettingsScreenState extends State<SettingsScreen>
       builder: (context) => const GroupSubscriptionDialog(),
     ).then((result) {
       if (result == true && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'Subscribed to channel successfully',
-                  style: AppFonts.snackBar,
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-          ),
+        // Using the new SnackbarHelper
+        SnackbarHelper.showSnackBar(
+          context: context,
+          message: 'Subscribed to channel successfully',
+          backgroundColor: AppColors.primary,
         );
       }
     });
@@ -145,28 +132,20 @@ class _SettingsScreenState extends State<SettingsScreen>
         await _groupService.unsubscribeFromGroup(groupId);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Unsubscribed from channel',
-                style: AppFonts.snackBar,
-              ),
-              backgroundColor: AppColors.primary,
-              behavior: SnackBarBehavior.floating,
-            ),
+          // Using the new SnackbarHelper
+          SnackbarHelper.showSnackBar(
+            context: context,
+            message: 'Unsubscribed from channel',
+            backgroundColor: AppColors.primary,
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Error unsubscribing: $e',
-                style: AppFonts.snackBar,
-              ),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
+          // Using the new SnackbarHelper for error messages
+          SnackbarHelper.showSnackBar(
+            context: context,
+            message: 'Error unsubscribing: $e',
+            backgroundColor: Colors.red,
           );
         }
       }
@@ -197,28 +176,20 @@ class _SettingsScreenState extends State<SettingsScreen>
         await provider.deleteAllNotifications();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Notification history cleared',
-                style: AppFonts.snackBar,
-              ),
-              backgroundColor: AppColors.primary,
-              behavior: SnackBarBehavior.floating,
-            ),
+          // Using the new SnackbarHelper
+          SnackbarHelper.showSnackBar(
+            context: context,
+            message: 'Notification history cleared',
+            backgroundColor: AppColors.primary,
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Error clearing history: $e',
-                style: AppFonts.snackBar,
-              ),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
+          // Using the new SnackbarHelper for error messages
+          SnackbarHelper.showSnackBar(
+            context: context,
+            message: 'Error clearing history: $e',
+            backgroundColor: Colors.red,
           );
         }
       }
@@ -346,15 +317,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                 _isTokenCopied = true;
               });
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'User ID copied to clipboard',
-                    style: AppFonts.snackBar,
-                  ),
-                  backgroundColor: AppColors.primary,
-                  behavior: SnackBarBehavior.floating,
-                ),
+              // Using the new SnackbarHelper
+              SnackbarHelper.showSnackBar(
+                context: context,
+                message: 'User ID copied to clipboard',
+                backgroundColor: AppColors.primary,
               );
 
               Future.delayed(const Duration(seconds: 2), () {

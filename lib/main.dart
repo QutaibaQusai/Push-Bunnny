@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:push_bunnny/core/config/firebase_options.dart';
 import 'package:push_bunnny/core/services/local_storage_service.dart';
+import 'package:push_bunnny/core/utils/snackbar_helper.dart';
 import 'package:push_bunnny/features/auth/services/auth_service.dart';
 import 'package:push_bunnny/features/notifications/providers/notification_provider.dart';
 import 'package:push_bunnny/features/notifications/repositories/notification_repository.dart';
@@ -124,6 +125,8 @@ class MyApp extends StatelessWidget {
       title: 'Push Bunny',
       theme: AppTheme.lightTheme,
       navigatorKey: AppRouter.navigatorKey,
+            scaffoldMessengerKey: SnackbarHelper.scaffoldMessengerKey, 
+
       home: const NotificationHistoryScreen(),
       routes: AppRouter.routes,
     );

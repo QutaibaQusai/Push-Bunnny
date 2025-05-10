@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:push_bunnny/core/constants/app_colors.dart';
 import 'package:push_bunnny/core/constants/app_fonts.dart';
+import 'package:push_bunnny/core/utils/snackbar_helper.dart'; 
 import 'package:push_bunnny/features/notifications/models/group_subscription_model.dart';
 import 'package:push_bunnny/features/notifications/providers/notification_provider.dart';
 import 'package:push_bunnny/features/notifications/services/group_subscription_service.dart';
@@ -224,12 +225,10 @@ class NotificationHistoryScreen extends StatelessWidget {
       await provider.deleteNotification(notificationId);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Message deleted', style: AppFonts.snackBar),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-          ),
+        SnackbarHelper.showSnackBar(
+          context: context,
+          message: 'Message deleted',
+          backgroundColor: AppColors.primary,
         );
       }
     }
