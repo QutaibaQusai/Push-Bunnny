@@ -15,7 +15,7 @@ val keystorePropertiesFile = rootProject.file("key.properties")
 keystoreProperties.load(keystorePropertiesFile.inputStream())
 
 android {
-    namespace = "com.example.push_bung"
+    namespace = "com.push.bunny"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -30,7 +30,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.push_bung"
+        applicationId = "com.push.bunny"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
