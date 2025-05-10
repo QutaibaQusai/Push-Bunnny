@@ -335,7 +335,6 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
         ],
       ),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
@@ -468,7 +467,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                       height: 1.4,
                       color: AppColors.textPrimary.withOpacity(0.85),
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
