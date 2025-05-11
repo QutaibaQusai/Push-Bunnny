@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -14,50 +16,51 @@ class NotificationRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LocalStorageService _storage = LocalStorageService();
   final ConnectivityHelper _connectivity = ConnectivityHelper();
-  
-// lib/features/notifications/repositories/notification_repository.dart (updated for saveNotification method)
 Future<void> saveNotification({
   required RemoteMessage message,
   required String userId,
   required String appState,
 }) async {
   try {
-    // Extract messageId - this is the key for preventing duplicates
     final String messageId = message.messageId ?? 
                          DateTime.now().millisecondsSinceEpoch.toString();
     
-    // Check if this notification already exists in local storage
     if (_storage.hasNotificationWithMessageId(messageId)) {
       debugPrint('Notification with messageId $messageId already exists. Skipping save.');
       return;
     }
     
-    // Extract notification data
     final notification = message.notification;
     final data = message.data;
     
-    // Create notification model
     final String title = notification?.title ?? data['title'] ?? 'Notification';
     final String body = notification?.body ?? data['body'] ?? '';
-    final String? imageUrl = notification?.android?.imageUrl ?? data['imageUrl'];
-    final String? link = data['link']; // Extract link from data
+
+  String? imageUrl;
+    
+    if (Platform.isAndroid) {
+      imageUrl = notification?.android?.imageUrl ?? data['imageUrl'];
+    } else if (Platform.isIOS) {
+      imageUrl = notification?.apple?.imageUrl ?? data['imageUrl'];
+    } else {
+      imageUrl = data['imageUrl'];
+    }   
+        final String? link = data['link']; // Extract link from data
     
     // Extract group info (if any)
     final String? groupId = _extractGroupId(message);
     final String? groupName = data['groupName'] ?? groupId;
     
-    // Create a combined data map that includes the messageId
     final Map<String, dynamic> combinedData = {...data};
     combinedData['messageId'] = messageId;
     
-    // Create notification model with current DateTime for local storage
-    // This avoids the Timestamp issue
+  
     final notificationModel = NotificationModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(), // Temp ID for local storage
+      id: DateTime.now().millisecondsSinceEpoch.toString(), 
       userId: userId,
       title: title,
       body: body,
-      timestamp: DateTime.now(), // Use DateTime.now() instead of Timestamp
+      timestamp: DateTime.now(), 
       imageUrl: imageUrl,
       groupId: groupId,
       groupName: groupName,
@@ -84,23 +87,18 @@ Future<void> saveNotification({
         'groupName': groupName,
         'isRead': false,
         'appState': appState,
-        'messageId': messageId, // Include messageId for deduplication
-        'link': link, // Include link in Firestore
+        'messageId': messageId, 
+        'link': link, 
       };
       
-      // Add all data from message.data
       firestoreData.addAll(data);
       
-      // Save to Firestore
       final docRef = await _firestore.collection('notifications').add(firestoreData);
       
-      // Create updated model with Firestore ID
       final updatedModel = notificationModel.copyWith(id: docRef.id);
       
-      // Update local storage with Firestore ID
       await _storage.saveNotification(updatedModel);
       
-      // Delete temporary notification
       await _storage.deleteNotification(notificationModel.id);
       
       debugPrint('Notification saved to Firestore with ID: ${docRef.id} and messageId: $messageId');
@@ -111,7 +109,7 @@ Future<void> saveNotification({
     debugPrint('Error saving notification: $e');
   }
 }
-  // Get all notifications for a user
+
   Stream<List<NotificationModel>> getUserNotifications(String userId) {
     return _firestore
         .collection('notifications')
@@ -241,16 +239,87 @@ Future<void> saveNotification({
   
   // Extract group ID from a message
   String? _extractGroupId(RemoteMessage message) {
-    // Check if message is from a topic
-    if (message.from != null && message.from!.startsWith('/topics/')) {
-      return message.from!.substring(8); // Remove '/topics/' prefix
-    }
-    
-    // Check data payload for explicit group info
-    if (message.data.containsKey('groupId')) {
-      return message.data['groupId'];
-    }
-    
-    return null;
+  // Debug logging
+  debugPrint('Platform: ${Platform.operatingSystem}');
+  debugPrint('Message from: ${message.from}');
+  
+  // Check for Android standard location ("/topics/name" in "from" field)
+  if (message.from != null && message.from!.startsWith('/topics/')) {
+    final topicName = message.from!.substring(8); // Remove '/topics/' prefix
+    debugPrint('Found topic in message.from: $topicName');
+    return topicName;
   }
+  
+  // Check data payload for explicit group info
+  if (message.data.containsKey('groupId')) {
+    debugPrint('Found groupId in data: ${message.data['groupId']}');
+    return message.data['groupId'];
+  }
+  
+  // For iOS, search for "/topics/" pattern in all message data fields
+  if (Platform.isIOS) {
+    debugPrint('iOS: Searching for /topics/ pattern in all fields');
+    
+    // Check each data field for "/topics/" pattern
+    for (var entry in message.data.entries) {
+      if (entry.value is String) {
+        final value = entry.value as String;
+        debugPrint('Checking field ${entry.key}: $value');
+        
+        // Look for exact "/topics/" pattern
+        if (value.contains('/topics/')) {
+          // Extract the part after "/topics/"
+          final parts = value.split('/topics/');
+          if (parts.length > 1 && parts[1].isNotEmpty) {
+            // Further split by any delimiter that might follow the topic name
+            final topicName = parts[1].split(RegExp(r'[/\s,:]'))[0];
+            debugPrint('Found /topics/ pattern in ${entry.key}: $topicName');
+            return topicName;
+          }
+        }
+      }
+    }
+    
+    // Check message ID and other fields for "/topics/" pattern
+    final fieldsToCheck = [
+      message.messageId, 
+      message.category,
+      message.collapseKey,
+      message.senderId
+    ];
+    
+    for (var field in fieldsToCheck) {
+      if (field != null && field.contains('/topics/')) {
+        final parts = field.split('/topics/');
+        if (parts.length > 1 && parts[1].isNotEmpty) {
+          // Further split by any delimiter that might follow the topic name
+          final topicName = parts[1].split(RegExp(r'[/\s,:]'))[0];
+          debugPrint('Found /topics/ pattern in message field: $topicName');
+          return topicName;
+        }
+      }
+    }
+    
+    // More aggressive search - look for "topics" without the slash
+    // This is a backup approach
+    for (var entry in message.data.entries) {
+      if (entry.value is String) {
+        final value = entry.value as String;
+        if (value.contains('topics')) {
+          // Try to extract using a regex that looks for topics followed by some delimiter
+          final topicRegex = RegExp(r'topics[/=_-]([a-zA-Z0-9_-]+)');
+          final match = topicRegex.firstMatch(value);
+          if (match != null && match.groupCount >= 1) {
+            final topicName = match.group(1);
+            debugPrint('Found topics pattern in ${entry.key}: $topicName');
+            return topicName;
+          }
+        }
+      }
+    }
+  }
+  
+  debugPrint('No topic found in message');
+  return null;
+}
 }
