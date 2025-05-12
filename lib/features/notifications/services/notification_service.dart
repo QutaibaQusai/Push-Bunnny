@@ -96,26 +96,24 @@ class NotificationService {
             alert: true,
             badge: true,
             sound: true,
-            critical: true, // Request critical alerts for higher priority
+            critical: true, 
           );
 
-      // For iOS 10+ set presentation options
       await _messaging.setForegroundNotificationPresentationOptions(
-        alert: true, // Shows the notification banner when in foreground
-        badge: true, // Updates the app's badge count
-        sound: true, // Plays a sound
+        alert: true, 
+        badge: true, 
+        sound: true, 
       );
     }
 
-    // Request FCM permissions with higher priority options
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
-      provisional: true, // Uses provisional authorization on iOS
+      provisional: true, 
       criticalAlert:
-          true, // Request critical alert permission for high priority
-      announcement: true, // Request announcement capability
+          true, 
+      announcement: true, 
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
@@ -129,21 +127,16 @@ class NotificationService {
   }
 
   Future<void> _configureFirebaseMessaging() async {
-    // Handle foreground messages
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    // Handle when app is opened via a notification when in background
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
-    // Check for initial message (app opened from terminated state)
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       await _handleInitialMessage(initialMessage);
     }
 
-    // Enable delivering messages in the background
     if (Platform.isIOS) {
-      // For iOS
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
             alert: true,
@@ -157,12 +150,10 @@ class NotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
-    // Check if this is a group notification
     final isGroupNotification = message.data['groupId'] != null;
     final String groupId = message.data['groupId'] ?? 'default_group';
     final String groupName = message.data['groupName'] ?? 'Notifications';
 
-    // Android notification details with max priority for heads-up display
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           _channel.id,
@@ -180,41 +171,36 @@ class NotificationService {
             contentTitle: notification.title,
             summaryText: isGroupNotification ? groupName : notification.title,
           ),
-          // Group settings for Android
           groupKey: isGroupNotification ? groupId : null,
           setAsGroupSummary: isGroupNotification,
           groupAlertBehavior: GroupAlertBehavior.all,
           playSound: true,
           enableLights: true,
           enableVibration: true,
-          ticker: notification.title, // For accessibility services
-          fullScreenIntent: true, // This is critical for heads-up display
-          category: AndroidNotificationCategory.message, // Set as message type
+          ticker: notification.title,
+          fullScreenIntent: true, 
+          category: AndroidNotificationCategory.message,
         );
 
-    // iOS notification details with critical alert option
     final DarwinNotificationDetails iOSDetails = DarwinNotificationDetails(
-      presentAlert: true, // Shows the notification banner
-      presentBadge: true, // Updates the app's badge count
-      presentSound: true, // Plays a sound
-      sound: 'default', // Use the default sound
-      badgeNumber: 1, // Set badge number
+      presentAlert: true, 
+      presentBadge: true,
+      presentSound: true, 
+      sound: 'default', 
+      badgeNumber: 1, 
       threadIdentifier: isGroupNotification ? groupId : null,
       interruptionLevel:
-          InterruptionLevel.active, // High priority interruption level
-      categoryIdentifier: "message", // Set as message category
+          InterruptionLevel.active, 
+      categoryIdentifier: "message", 
     );
 
-    // Combined platform-specific details
     final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
       iOS: iOSDetails,
     );
 
-    // Generate a unique ID for this notification based on the message ID
     final notificationId = message.messageId?.hashCode ?? notification.hashCode;
 
-    // Show the notification
     await _localNotifications.show(
       notificationId,
       notification.title,
@@ -228,16 +214,13 @@ class NotificationService {
     );
   }
 
-  // Check if we've already processed this notification
   bool _hasProcessedNotification(String messageId) {
     return _processedNotificationIds.contains(messageId);
   }
 
-  // Mark a notification as processed
   void _markNotificationAsProcessed(String messageId) {
     _processedNotificationIds.add(messageId);
 
-    // Limit the set size to prevent memory issues
     if (_processedNotificationIds.length > 100) {
       _processedNotificationIds.remove(_processedNotificationIds.first);
     }
@@ -248,7 +231,6 @@ class NotificationService {
         message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
     debugPrint('Handling foreground message: $messageId');
 
-    // Check if we've already processed this notification
     if (_hasProcessedNotification(messageId)) {
       debugPrint('Skipping already processed notification: $messageId');
       return;
@@ -270,8 +252,9 @@ class NotificationService {
       );
     }
 
-    // Show local notification
+      if (!Platform.isIOS) {
     await _showLocalNotification(message);
+  }
   }
 
   Future<void> _handleMessageOpenedApp(RemoteMessage message) async {

@@ -49,13 +49,13 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDenlX7XG5XevOIiBLM2PH3Mz4qdSWJwCM',
-    appId: '1:632612758944:ios:e1d7d217848d28d37830c5',
-    messagingSenderId: '632612758944',
-    projectId: 'push-punny',
-    storageBucket: 'push-punny.firebasestorage.app',
-    iosBundleId: 'com.example.pushBunny',
-  );
+  apiKey: 'AIzaSyDenlX7XG5XevOIiBLM2PH3Mz4qdSWJwCM',
+  appId: '1:632612758944:ios:d6c9fdaab29fe3e27830c5',
+  messagingSenderId: '632612758944',
+  projectId: 'push-punny',
+  storageBucket: 'push-punny.firebasestorage.app',
+  iosBundleId: 'com.push.bunny',
+);
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyDenlX7XG5XevOIiBLM2PH3Mz4qdSWJwCM',
