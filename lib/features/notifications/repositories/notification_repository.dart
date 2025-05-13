@@ -236,90 +236,18 @@ Future<void> saveNotification({
       debugPrint('Error deleting all notifications: $e');
     }
   }
-  
-  // Extract group ID from a message
-  String? _extractGroupId(RemoteMessage message) {
-  // Debug logging
-  debugPrint('Platform: ${Platform.operatingSystem}');
-  debugPrint('Message from: ${message.from}');
-  
-  // Check for Android standard location ("/topics/name" in "from" field)
-  if (message.from != null && message.from!.startsWith('/topics/')) {
-    final topicName = message.from!.substring(8); // Remove '/topics/' prefix
-    debugPrint('Found topic in message.from: $topicName');
-    return topicName;
-  }
-  
-  // Check data payload for explicit group info
+ String? _extractGroupId(RemoteMessage message) {
+  // Always prioritize explicit groupId from data
   if (message.data.containsKey('groupId')) {
-    debugPrint('Found groupId in data: ${message.data['groupId']}');
     return message.data['groupId'];
   }
-  
-  // For iOS, search for "/topics/" pattern in all message data fields
-  if (Platform.isIOS) {
-    debugPrint('iOS: Searching for /topics/ pattern in all fields');
-    
-    // Check each data field for "/topics/" pattern
-    for (var entry in message.data.entries) {
-      if (entry.value is String) {
-        final value = entry.value as String;
-        debugPrint('Checking field ${entry.key}: $value');
-        
-        // Look for exact "/topics/" pattern
-        if (value.contains('/topics/')) {
-          // Extract the part after "/topics/"
-          final parts = value.split('/topics/');
-          if (parts.length > 1 && parts[1].isNotEmpty) {
-            // Further split by any delimiter that might follow the topic name
-            final topicName = parts[1].split(RegExp(r'[/\s,:]'))[0];
-            debugPrint('Found /topics/ pattern in ${entry.key}: $topicName');
-            return topicName;
-          }
-        }
-      }
-    }
-    
-    // Check message ID and other fields for "/topics/" pattern
-    final fieldsToCheck = [
-      message.messageId, 
-      message.category,
-      message.collapseKey,
-      message.senderId
-    ];
-    
-    for (var field in fieldsToCheck) {
-      if (field != null && field.contains('/topics/')) {
-        final parts = field.split('/topics/');
-        if (parts.length > 1 && parts[1].isNotEmpty) {
-          // Further split by any delimiter that might follow the topic name
-          final topicName = parts[1].split(RegExp(r'[/\s,:]'))[0];
-          debugPrint('Found /topics/ pattern in message field: $topicName');
-          return topicName;
-        }
-      }
-    }
-    
-    // More aggressive search - look for "topics" without the slash
-    // This is a backup approach
-    for (var entry in message.data.entries) {
-      if (entry.value is String) {
-        final value = entry.value as String;
-        if (value.contains('topics')) {
-          // Try to extract using a regex that looks for topics followed by some delimiter
-          final topicRegex = RegExp(r'topics[/=_-]([a-zA-Z0-9_-]+)');
-          final match = topicRegex.firstMatch(value);
-          if (match != null && match.groupCount >= 1) {
-            final topicName = match.group(1);
-            debugPrint('Found topics pattern in ${entry.key}: $topicName');
-            return topicName;
-          }
-        }
-      }
-    }
+
+  // Fallback: Android may populate this
+  if (message.from != null && message.from!.startsWith('/topics/')) {
+    return message.from!.substring(8); // remove '/topics/'
   }
-  
-  debugPrint('No topic found in message');
+
   return null;
 }
+
 }
