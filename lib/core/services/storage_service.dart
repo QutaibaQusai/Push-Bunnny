@@ -1,66 +1,74 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:push_bunnny/features/groups/models/group_model.dart';
 import 'package:push_bunnny/features/notifications/models/notification_model.dart';
-
 
 class StorageService {
   static final StorageService instance = StorageService._();
   StorageService._();
 
-  static const String _userBox = 'user_data';
-  static const String _notificationsBox = 'notifications';
-  static const String _groupsBox = 'groups';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Collections
+  static const String _usersCollection = 'users';
+  static const String _notificationsCollection = 'notifications';
+  static const String _groupsCollection = 'groups';
 
   Future<void> initialize() async {
-    final appDocDir = await getApplicationDocumentsDirectory();
-    await Hive.initFlutter(appDocDir.path);
-    
-    // Open boxes
-    await Hive.openBox(_userBox);
-    await Hive.openBox<Map>(_notificationsBox);
-    await Hive.openBox<Map>(_groupsBox);
-    
-    debugPrint('📦 Storage initialized');
+    // No initialization needed for Firestore
+    debugPrint('📦 Firestore storage initialized');
   }
 
   // User methods
   Future<void> saveUserId(String userId) async {
-    final box = Hive.box(_userBox);
-    await box.put('userId', userId);
+    try {
+      await _firestore.collection(_usersCollection).doc(userId).set({
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastActive': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('💾 User ID saved: $userId');
+    } catch (e) {
+      debugPrint('❌ Failed to save user ID: $e');
+      rethrow;
+    }
   }
 
   Future<String?> getUserId() async {
-    final box = Hive.box(_userBox);
-    return box.get('userId');
+    // This will be handled by AuthService now
+    return null;
   }
 
   // Notification methods
   Future<void> saveNotification(NotificationModel notification) async {
     try {
-      final box = Hive.box<Map>(_notificationsBox);
-      await box.put(notification.id, notification.toMap());
+      await _firestore
+          .collection(_usersCollection)
+          .doc(notification.userId)
+          .collection(_notificationsCollection)
+          .doc(notification.id)
+          .set(notification.toMap());
       debugPrint('💾 Notification saved: ${notification.id}');
     } catch (e) {
       debugPrint('❌ Failed to save notification: $e');
+      rethrow;
     }
   }
 
   Future<List<NotificationModel>> getNotifications(String userId) async {
     try {
-      final box = Hive.box<Map>(_notificationsBox);
-      final notifications = <NotificationModel>[];
-      
-      for (final entry in box.values) {
-        if (entry != null && entry['userId'] == userId) {
-          notifications.add(NotificationModel.fromMap(Map<String, dynamic>.from(entry)));
-        }
-      }
-      
-      // Sort by timestamp (newest first)
-      notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      return notifications;
+      final snapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_notificationsCollection)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => NotificationModel.fromMap({
+                ...doc.data(),
+                'id': doc.id,
+              }))
+          .toList();
     } catch (e) {
       debugPrint('❌ Failed to get notifications: $e');
       return [];
@@ -69,81 +77,92 @@ class StorageService {
 
   Future<List<NotificationModel>> getGroupNotifications(String userId, String groupId) async {
     try {
-      final box = Hive.box<Map>(_notificationsBox);
-      final notifications = <NotificationModel>[];
-      
-      for (final entry in box.values) {
-        if (entry != null && 
-            entry['userId'] == userId && 
-            entry['data']?['type'] == 'group' &&
-            entry['data']?['id'] == groupId) {
-          notifications.add(NotificationModel.fromMap(Map<String, dynamic>.from(entry)));
-        }
-      }
-      
-      notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      return notifications;
+      final snapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_notificationsCollection)
+          .where('data.type', isEqualTo: 'group')
+          .where('data.id', isEqualTo: groupId)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => NotificationModel.fromMap({
+                ...doc.data(),
+                'id': doc.id,
+              }))
+          .toList();
     } catch (e) {
       debugPrint('❌ Failed to get group notifications: $e');
       return [];
     }
   }
 
-  Future<void> markNotificationAsRead(String notificationId) async {
+  Future<void> markNotificationAsRead(String userId, String notificationId) async {
     try {
-      final box = Hive.box<Map>(_notificationsBox);
-      final notification = box.get(notificationId);
-      
-      if (notification != null) {
-        notification['isRead'] = true;
-        notification['readAt'] = DateTime.now().toIso8601String();
-        await box.put(notificationId, notification);
-        debugPrint('✅ Notification marked as read: $notificationId');
-      }
+      await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_notificationsCollection)
+          .doc(notificationId)
+          .update({
+        'isRead': true,
+        'readAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('✅ Notification marked as read: $notificationId');
     } catch (e) {
       debugPrint('❌ Failed to mark notification as read: $e');
+      rethrow;
     }
   }
 
-  Future<void> deleteNotification(String notificationId) async {
+  Future<void> deleteNotification(String userId, String notificationId) async {
     try {
-      final box = Hive.box<Map>(_notificationsBox);
-      await box.delete(notificationId);
+      await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_notificationsCollection)
+          .doc(notificationId)
+          .delete();
       debugPrint('🗑️ Notification deleted: $notificationId');
     } catch (e) {
       debugPrint('❌ Failed to delete notification: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteAllNotifications(String userId) async {
     try {
-      final box = Hive.box<Map>(_notificationsBox);
-      final keysToDelete = <dynamic>[];
-      
-      for (final key in box.keys) {
-        final notification = box.get(key);
-        if (notification != null && notification['userId'] == userId) {
-          keysToDelete.add(key);
-        }
+      final batch = _firestore.batch();
+      final snapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_notificationsCollection)
+          .get();
+
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
       }
-      
-      await box.deleteAll(keysToDelete);
+
+      await batch.commit();
       debugPrint('🗑️ All notifications deleted for user: $userId');
     } catch (e) {
       debugPrint('❌ Failed to delete all notifications: $e');
+      rethrow;
     }
   }
 
-  Future<bool> notificationExists(String messageId) async {
+  Future<bool> notificationExists(String userId, String messageId) async {
     try {
-      final box = Hive.box<Map>(_notificationsBox);
-      
-      for (final entry in box.values) {
-        if (entry != null && entry['messageId'] == messageId) {
-          return true;
-        }
-      }
-      return false;
+      final snapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_notificationsCollection)
+          .where('messageId', isEqualTo: messageId)
+          .limit(1)
+          .get();
+
+      return snapshot.docs.isNotEmpty;
     } catch (e) {
       debugPrint('❌ Failed to check notification existence: $e');
       return false;
@@ -153,51 +172,99 @@ class StorageService {
   // Group methods
   Future<void> saveGroup(GroupModel group) async {
     try {
-      final box = Hive.box<Map>(_groupsBox);
-      await box.put(group.id, group.toMap());
+      await _firestore
+          .collection(_usersCollection)
+          .doc(group.userId)
+          .collection(_groupsCollection)
+          .doc(group.id)
+          .set(group.toMap());
       debugPrint('💾 Group saved: ${group.id}');
     } catch (e) {
       debugPrint('❌ Failed to save group: $e');
+      rethrow;
     }
   }
 
   Future<List<GroupModel>> getSubscribedGroups(String userId) async {
     try {
-      final box = Hive.box<Map>(_groupsBox);
-      final groups = <GroupModel>[];
-      
-      for (final entry in box.values) {
-        if (entry != null && entry['userId'] == userId) {
-          groups.add(GroupModel.fromMap(Map<String, dynamic>.from(entry)));
-        }
-      }
-      
-      groups.sort((a, b) => b.subscribedAt.compareTo(a.subscribedAt));
-      return groups;
+      final snapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_groupsCollection)
+          .orderBy('subscribedAt', descending: true)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => GroupModel.fromMap({
+                ...doc.data(),
+                'id': doc.id,
+              }))
+          .toList();
     } catch (e) {
       debugPrint('❌ Failed to get subscribed groups: $e');
       return [];
     }
   }
 
-  Future<void> deleteGroup(String groupId) async {
+  Future<void> deleteGroup(String userId, String groupId) async {
     try {
-      final box = Hive.box<Map>(_groupsBox);
-      await box.delete(groupId);
+      await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_groupsCollection)
+          .doc(groupId)
+          .delete();
       debugPrint('🗑️ Group deleted: $groupId');
     } catch (e) {
       debugPrint('❌ Failed to delete group: $e');
+      rethrow;
     }
   }
 
   Future<bool> isSubscribedToGroup(String userId, String groupId) async {
     try {
-      final box = Hive.box<Map>(_groupsBox);
-      final key = '${userId}_$groupId';
-      return box.containsKey(key);
+      final doc = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection(_groupsCollection)
+          .doc('${userId}_$groupId')
+          .get();
+
+      return doc.exists;
     } catch (e) {
       debugPrint('❌ Failed to check group subscription: $e');
       return false;
     }
+  }
+
+  // Real-time listeners
+  Stream<List<NotificationModel>> getNotificationsStream(String userId) {
+    return _firestore
+        .collection(_usersCollection)
+        .doc(userId)
+        .collection(_notificationsCollection)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => NotificationModel.fromMap({
+                  ...doc.data(),
+                  'id': doc.id,
+                }))
+            .toList());
+  }
+
+  Stream<List<GroupModel>> getSubscribedGroupsStream(String userId) {
+    return _firestore
+        .collection(_usersCollection)
+        .doc(userId)
+        .collection(_groupsCollection)
+        .orderBy('subscribedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => GroupModel.fromMap({
+                  ...doc.data(),
+                  'id': doc.id,
+                }))
+            .toList());
   }
 }

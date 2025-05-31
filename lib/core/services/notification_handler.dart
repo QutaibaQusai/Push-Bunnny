@@ -7,7 +7,6 @@ import 'package:push_bunnny/core/services/storage_service.dart';
 import 'package:push_bunnny/features/notifications/models/notification_model.dart';
 import 'package:push_bunnny/ui/navigation/app_router.dart';
 
-
 class NotificationHandler {
   static final NotificationHandler instance = NotificationHandler._();
   NotificationHandler._();
@@ -140,7 +139,6 @@ class NotificationHandler {
     debugPrint('🔔 Background message received: ${message.messageId}');
     
     // Initialize required services for background processing
-    await StorageService.instance.initialize();
     await AuthService.instance.initialize();
     
     await instance._saveNotification(message, 'background');
@@ -149,12 +147,15 @@ class NotificationHandler {
   Future<void> _saveNotification(RemoteMessage message, String appState) async {
     try {
       final userId = AuthService.instance.userId;
-      if (userId == null) return;
+      if (userId == null) {
+        debugPrint('❌ No user ID available, cannot save notification');
+        return;
+      }
 
       final messageId = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
       
       // Check for duplicates
-      if (await StorageService.instance.notificationExists(messageId)) {
+      if (await StorageService.instance.notificationExists(userId, messageId)) {
         debugPrint('⚠️ Duplicate notification ignored: $messageId');
         return;
       }
