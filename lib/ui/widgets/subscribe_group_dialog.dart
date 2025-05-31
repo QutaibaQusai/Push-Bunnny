@@ -3,10 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:push_bunnny/features/groups/providers/group_provider.dart';
 import 'package:push_bunnny/ui/theme/app_colors.dart';
 import 'package:push_bunnny/ui/theme/text_style.dart';
-
+import 'package:push_bunnny/ui/widgets/snackbar_helper.dart';
 
 class SubscribeGroupDialog extends StatefulWidget {
-  const SubscribeGroupDialog({super.key});
+  const SubscribeGroupDialog({Key? key}) : super(key: key);
 
   @override
   State<SubscribeGroupDialog> createState() => _SubscribeGroupDialogState();
@@ -14,49 +14,59 @@ class SubscribeGroupDialog extends StatefulWidget {
 
 class _SubscribeGroupDialogState extends State<SubscribeGroupDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _controller = TextEditingController();
+  final _groupNameController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _groupNameController.dispose();
     super.dispose();
   }
 
-  Future<void> _subscribe() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _subscribeToGroup() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+      try {
+        final groupName = _groupNameController.text.trim();
 
-    try {
-      final groupName = _controller.text.trim();
-      
-      // Check if already subscribed
-      final isSubscribed = await context.read<GroupProvider>().isSubscribedToGroup(groupName);
-      if (isSubscribed) {
-        setState(() {
-          _errorMessage = 'Already subscribed to this group';
-          _isLoading = false;
-        });
-        return;
-      }
+        bool isAlreadySubscribed = await context
+            .read<GroupProvider>()
+            .isSubscribedToGroup(groupName);
+        if (isAlreadySubscribed) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'You are already subscribed to this channel';
+          });
+          return;
+        }
 
-      // Subscribe to group
-      await context.read<GroupProvider>().subscribeToGroup(groupName, groupName);
-      
-      if (mounted) {
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
+        await context.read<GroupProvider>().subscribeToGroup(
+          groupName,
+          groupName,
+        );
+
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
+      } catch (e) {
+        debugPrint('Error subscribing to group: $e');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Failed to subscribe: ${e.toString()}';
+          });
+
+          SnackbarHelper.show(
+            context: context,
+            message: 'Error subscribing to channel',
+            backgroundColor: Colors.red,
+          );
+        }
       }
     }
   }
@@ -64,21 +74,19 @@ class _SubscribeGroupDialogState extends State<SubscribeGroupDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.shade300,
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+              color: AppColors.shadow.withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
             ),
           ],
         ),
@@ -87,95 +95,68 @@ class _SubscribeGroupDialogState extends State<SubscribeGroupDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.campaign,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Subscribe to Group',
-                      style: AppTextStyles.heading3.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+              Text(
+                'Subscribe to Channel',
+                style: AppTextStyles.heading3.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 24),
-              
-              // Form field
+              const SizedBox(height: 20),
               TextFormField(
-                controller: _controller,
+                controller: _groupNameController,
                 decoration: InputDecoration(
-                  labelText: 'Group Name',
-                  hintText: 'Enter group name',
-                  prefixIcon: Icon(
-                    Icons.group_outlined,
-                    color: AppColors.primary,
-                  ),
+                  labelText: 'Channel Name',
+                  labelStyle: TextStyle(fontSize: 14),
+                  hintText: 'Enter channel name to subscribe',
+                  prefixIcon: Icon(Icons.campaign, color: AppColors.primary),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: AppColors.primary,
-                      width: 2,
-                    ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.red.shade300),
                   ),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a group name';
+                    return 'Please enter a channel name';
                   }
-                  
-                  // Validate characters (alphanumeric and underscores only)
-                  if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value.trim())) {
-                    return 'Only letters, numbers, and underscores allowed';
+
+                  // Only allow alphanumeric characters and underscores
+                  final validCharacters = RegExp(r'^[a-zA-Z0-9_]+$');
+
+                  if (!validCharacters.hasMatch(value)) {
+                    return 'Only letters, numbers, and underscores are allowed';
                   }
-                  
+
                   return null;
                 },
-                enabled: !_isLoading,
               ),
-              
-              // Error message
+
               if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.error.withOpacity(0.3),
-                    ),
+                    border: Border.all(color: Colors.red.shade100),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.error_outline,
-                        color: AppColors.error,
                         size: 16,
+                        color: Colors.red.shade700,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: AppTextStyles.bodySmallStyle.copyWith(
-                            color: AppColors.error,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 12,
                           ),
                         ),
                       ),
@@ -183,52 +164,47 @@ class _SubscribeGroupDialogState extends State<SubscribeGroupDialog> {
                   ),
                 ),
               ],
-              
               const SizedBox(height: 24),
-              
-              // Buttons
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                      child: Text(
-                        'Cancel',
-                        style: AppTextStyles.button.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                  TextButton(
+                    onPressed:
+                        _isLoading ? null : () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 14,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _subscribe,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _subscribeToGroup,
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child:
+                        _isLoading
+                            ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
-                          : Text(
-                              'Subscribe',
-                              style: AppTextStyles.button.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                    ),
+                            : Text('Subscribe', style: TextStyle(fontSize: 14)),
                   ),
                 ],
               ),

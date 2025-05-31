@@ -11,7 +11,6 @@ import 'package:push_bunnny/ui/widgets/notification_card.dart';
 import 'package:push_bunnny/ui/widgets/notification_details_sheet.dart';
 import 'package:push_bunnny/ui/widgets/snackbar_helper.dart';
 
-
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
@@ -33,57 +32,29 @@ class NotificationsScreen extends StatelessWidget {
       automaticallyImplyLeading: false,
       title: Row(
         children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Icon(
-              Icons.notifications,
-              color: AppColors.primary,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 8),
+          Image.asset('assets/iconWhite.png', height: 24, width: 24),
+          const SizedBox(width: 7),
           Text('Push Bunny', style: AppTextStyles.appBarTitle),
         ],
       ),
       flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.primaryGradient,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.secondary, AppColors.primary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
       ),
       elevation: 0,
+      centerTitle: false,
       actions: [
-        Consumer<NotificationProvider>(
-          builder: (context, provider, _) {
-            if (provider.unreadCount > 0) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${provider.unreadCount}',
-                    style: AppTextStyles.bodySmallStyle.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          },
-        ),
-        IconButton(
-          onPressed: () => AppRouter.navigateToSettings(),
-          icon: const Icon(Icons.settings, color: Colors.white),
+        InkWell(
+          onTap: () => AppRouter.navigateToSettings(),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Icon(Icons.settings, color: AppColors.background),
+          ),
         ),
       ],
     );
@@ -126,7 +97,8 @@ class NotificationsScreen extends StatelessWidget {
                     return GroupFilterChip(
                       label: group.name,
                       icon: Icons.campaign,
-                      isSelected: notificationProvider.selectedGroupId == groupId,
+                      isSelected:
+                          notificationProvider.selectedGroupId == groupId,
                       onTap: () => notificationProvider.selectGroup(groupId),
                     );
                   }),
@@ -143,9 +115,7 @@ class NotificationsScreen extends StatelessWidget {
     return Consumer<NotificationProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (provider.notifications.isEmpty) {
@@ -172,17 +142,11 @@ class NotificationsScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.notifications_none,
-            size: 64,
-            color: Colors.grey.shade400,
-          ),
+          Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             'No notifications yet',
-            style: AppTextStyles.heading3.copyWith(
-              color: Colors.grey.shade600,
-            ),
+            style: AppTextStyles.heading3.copyWith(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           Text(
@@ -207,29 +171,33 @@ class NotificationsScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => NotificationDetailsSheet(notification: notification),
+      builder:
+          (context) => NotificationDetailsSheet(notification: notification),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, String notificationId) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    String notificationId,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => const ConfirmationDialog(
-        title: 'Delete Notification',
-        content: 'This notification will be permanently deleted.',
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
-      ),
+      builder:
+          (context) => const ConfirmationDialog(
+            title: 'Delete Notification',
+            content: 'This notification will be permanently deleted.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+          ),
     );
 
     if (confirmed == true && context.mounted) {
-      await context.read<NotificationProvider>().deleteNotification(notificationId);
-      
+      await context.read<NotificationProvider>().deleteNotification(
+        notificationId,
+      );
+
       if (context.mounted) {
-        SnackbarHelper.show(
-          context: context,
-          message: 'Notification deleted',
-        );
+        SnackbarHelper.show(context: context, message: 'Notification deleted');
       }
     }
   }
