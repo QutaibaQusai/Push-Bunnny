@@ -1,144 +1,119 @@
 import 'package:flutter/material.dart';
-import 'package:push_bunnny/core/constants/app_colors.dart';
-import 'package:push_bunnny/core/constants/app_fonts.dart';
+import 'package:push_bunnny/ui/theme/app_colors.dart';
+import 'package:push_bunnny/ui/theme/text_style.dart';
 
 
 class AboutScreen extends StatelessWidget {
-  const AboutScreen({Key? key}) : super(key: key);
+  const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        leadingWidth: 40,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: Column(
-        children: [
-          _buildHeroSection(context),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoCard(
-                    title: 'About',
-                    description:
-                        'Push Bunny is a simple and efficient push notification service that allows you to receive instant notifications from multiple channels.',
-                    icon: Icons.info_outline,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Version', '1.0.0', Icons.tag),
-                ],
-              ),
-            ),
-          ),
-        ],
+      appBar: _buildAppBar(),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildHeroSection(),
+            _buildContentSection(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeroSection(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: MediaQuery.of(context).size.height * 0.45,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.primary, AppColors.secondary],
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text('About', style: AppTextStyles.appBarTitle),
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: AppColors.primaryGradient,
         ),
       ),
-      child: Stack(
+      iconTheme: const IconThemeData(color: Colors.white),
+      elevation: 0,
+    );
+  }
+
+  Widget _buildHeroSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: const BoxDecoration(
+        gradient: AppColors.subtleGradient,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: Column(
         children: [
-          ..._buildBackgroundDecoration(),
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Hero(
-                  tag: 'app_logo',
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                      image: const DecorationImage(
-                        image: AssetImage('assets/push_punny.jpg'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Push Bunny',
-                  style: AppFonts.listItemTitle.copyWith(
-                    fontSize: AppFonts.heading1,
-                    fontWeight: AppFonts.bold,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Simple & Efficient Notifications',
-                  style: AppFonts.cardSubtitle.copyWith(
-                    fontSize: AppFonts.small,
-                    color: Colors.white.withOpacity(0.9),
-                    letterSpacing: 0.5,
-                  ),
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
+            child: const Icon(
+              Icons.notifications,
+              size: 60,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Push Bunny',
+            style: AppTextStyles.heading1.copyWith(
+              color: AppColors.primary,
+              fontSize: 28,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Simple & Powerful Notifications',
+            style: AppTextStyles.bodyLargeStyle.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
     );
   }
 
-  List<Widget> _buildBackgroundDecoration() {
-    return [
-      Positioned(top: 60, left: 20, child: _buildDecorativeCircle(16, 0.1)),
-      Positioned(top: 120, right: 40, child: _buildDecorativeCircle(24, 0.15)),
-      Positioned(
-        bottom: 100,
-        left: 50,
-        child: _buildDecorativeCircle(20, 0.12),
-      ),
-      Positioned(bottom: 60, right: 30, child: _buildDecorativeCircle(16, 0.1)),
-    ];
-  }
-
-  Widget _buildDecorativeCircle(double size, double opacity) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(opacity),
-        shape: BoxShape.circle,
+  Widget _buildContentSection() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          _buildInfoCard(
+            title: 'About Push Bunny',
+            description: 'Push Bunny is a modern, efficient push notification app that allows you to receive and manage notifications from multiple sources. Built with Flutter and Firebase for reliable, real-time notifications.',
+            icon: Icons.info_outline,
+          ),
+          const SizedBox(height: 16),
+          _buildInfoCard(
+            title: 'Features',
+            description: '• Real-time push notifications\n• Group subscriptions\n• Offline storage\n• Clean, modern interface\n• Cross-platform support',
+            icon: Icons.star_outline,
+          ),
+          const SizedBox(height: 16),
+          _buildVersionCard(),
+          const SizedBox(height: 32),
+          _buildFooter(),
+        ],
       ),
     );
   }
 
- Widget _buildInfoCard({
+  Widget _buildInfoCard({
     required String title,
     required String description,
     required IconData icon,
@@ -152,7 +127,7 @@ class AboutScreen extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade200,
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
@@ -165,28 +140,25 @@ class AboutScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
+                  color: AppColors.primaryWithOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: AppColors.primary, size: 18),
+                child: Icon(icon, color: AppColors.primary, size: 24),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Text(
                 title,
-                style: AppFonts.cardTitle.copyWith(
-                  fontSize: AppFonts.bodySmall,
-                  fontWeight: AppFonts.semiBold,
+                style: AppTextStyles.heading3.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             description,
-            style: AppFonts.cardSubtitle.copyWith(
-              fontSize: AppFonts.caption,
-              color: AppColors.textSecondary,
-              height: AppFonts.lineHeightRelaxed,
+            style: AppTextStyles.bodyMediumStyle.copyWith(
+              height: 1.5,
             ),
           ),
         ],
@@ -194,35 +166,85 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String title, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+  Widget _buildVersionCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppColors.accentGradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppColors.secondary, size: 16),
+            child: const Icon(Icons.tag, color: Colors.white, size: 24),
           ),
-          const SizedBox(width: 12),
-          Text(
-            title,
-            style: AppFonts.cardTitle.copyWith(fontSize: AppFonts.bodySmall),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: AppFonts.listItemSubtitle.copyWith(
-              fontSize: AppFonts.caption,
-              color: AppColors.textSecondary,
-              fontWeight: AppFonts.medium,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Version',
+                  style: AppTextStyles.bodyLargeStyle.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '1.0.0',
+                  style: AppTextStyles.bodyMediumStyle.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Column(
+      children: [
+        Container(
+          width: 32,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Built with ❤️ using Flutter',
+          style: AppTextStyles.bodySmallStyle.copyWith(
+            color: AppColors.textTertiary,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '© 2024 Push Bunny',
+style: AppTextStyles.timestamp.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
+      ],
     );
   }
 }
