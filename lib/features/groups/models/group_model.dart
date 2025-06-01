@@ -16,10 +16,35 @@ class GroupModel {
       id: map['id'] ?? '',
       userId: map['userId'] ?? '',
       name: map['name'] ?? '',
-      subscribedAt: map['subscribedAt'] is String 
-          ? DateTime.parse(map['subscribedAt'])
-          : map['subscribedAt'] ?? DateTime.now(),
+      subscribedAt: _parseDateTime(map['subscribedAt']) ?? DateTime.now(),
     );
+  }
+
+  // Helper method to parse different date formats
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    
+    if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        print('❌ Failed to parse DateTime from string: $value');
+        return DateTime.now();
+      }
+    } else if (value.runtimeType.toString() == 'Timestamp') {
+      // Handle Firestore Timestamp
+      try {
+        return (value as dynamic).toDate();
+      } catch (e) {
+        print('❌ Failed to convert Timestamp to DateTime: $e');
+        return DateTime.now();
+      }
+    }
+    
+    print('❌ Unknown timestamp type: ${value.runtimeType}');
+    return DateTime.now();
   }
 
   Map<String, dynamic> toMap() {

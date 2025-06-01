@@ -2,10 +2,9 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:push_bunnny/core/services/auth_service.dart';
-import 'package:push_bunnny/core/services/storage_service.dart';
-import 'package:push_bunnny/features/notifications/models/notification_model.dart';
 import 'package:push_bunnny/ui/navigation/app_router.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class NotificationHandler {
   static final NotificationHandler instance = NotificationHandler._();
@@ -30,6 +29,9 @@ class NotificationHandler {
     await _initializeLocalNotifications();
     await _requestPermissions();
     await _setupMessageHandlers();
+    
+    // Clear notifications when app starts in foreground
+    await _clearNotificationsOnForeground();
   }
 
   Future<void> _initializeLocalNotifications() async {
@@ -100,13 +102,13 @@ class NotificationHandler {
   }
 
   Future<void> _setupMessageHandlers() async {
-    // Foreground messages
+    // Foreground messages - show local notification
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    // Background tap (app in background)
+    // Background tap (app in background) - navigate to notifications
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
-    // App launched from terminated state
+    // App launched from terminated state - navigate to notifications
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
       await _handleMessageOpenedApp(initialMessage);
@@ -115,68 +117,90 @@ class NotificationHandler {
     debugPrint('📱 Message handlers setup complete');
   }
 
+  // NEW: Clear notifications when app comes to foreground
+  Future<void> _clearNotificationsOnForeground() async {
+    try {
+      final token = await getToken();
+      if (token != null) {
+        await _clearServerNotifications(token);
+        await _clearLocalNotifications();
+        debugPrint('🧹 Notifications cleared on app foreground');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to clear notifications: $e');
+    }
+  }
+
+  // NEW: Clear notifications from server
+  Future<void> _clearServerNotifications(String token) async {
+    try {
+      // Replace with your actual server endpoint
+      const String serverUrl = 'YOUR_SERVER_URL/clear-notifications';
+      
+      final response = await http.post(
+        Uri.parse(serverUrl),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'token': token,
+          'userId': 'USER_ID_HERE', // You might need to get this from your auth system
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('✅ Server notifications cleared');
+      } else {
+        debugPrint('❌ Failed to clear server notifications: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error clearing server notifications: $e');
+      rethrow;
+    }
+  }
+
+  // NEW: Clear local notifications
+  Future<void> _clearLocalNotifications() async {
+    try {
+      await _localNotifications.cancelAll();
+      debugPrint('✅ Local notifications cleared');
+    } catch (e) {
+      debugPrint('❌ Failed to clear local notifications: $e');
+    }
+  }
+
+  // NEW: Method to manually clear notifications (can be called from UI)
+  Future<void> clearAllNotifications() async {
+    await _clearNotificationsOnForeground();
+  }
+
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     debugPrint('📨 Foreground message received: ${message.messageId}');
     
-    await _saveNotification(message, 'foreground');
+    // DON'T show local notification when app is in foreground
+    // The user can already see the app content, so no need for duplicate notification
     
-    // Show local notification on Android (iOS handles automatically)
-    if (!Platform.isIOS) {
-      await _showLocalNotification(message);
-    }
+    // Optional: Update UI or refresh data instead
+    // Example: You could trigger a refresh of your notifications screen
+    // or update a badge count in your app
+    
+    debugPrint('🔔 Foreground message handled without showing notification');
   }
 
   Future<void> _handleMessageOpenedApp(RemoteMessage message) async {
     debugPrint('📱 Message opened app: ${message.messageId}');
     
-    await _saveNotification(message, 'background');
+    // Clear notifications when user taps on them
+    await _clearNotificationsOnForeground();
     
-    // Navigate to notifications screen
+    // Navigate to notifications
     AppRouter.navigateToNotifications();
   }
 
+  // Simple background handler - no saving needed (server handles it)
   static Future<void> handleBackgroundMessage(RemoteMessage message) async {
     debugPrint('🔔 Background message received: ${message.messageId}');
-    
-    // Initialize required services for background processing
-    await AuthService.instance.initialize();
-    
-    await instance._saveNotification(message, 'background');
-  }
-
-  Future<void> _saveNotification(RemoteMessage message, String appState) async {
-    try {
-      final userId = AuthService.instance.userId;
-      if (userId == null) {
-        debugPrint('❌ No user ID available, cannot save notification');
-        return;
-      }
-
-      final messageId = message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString();
-      
-      // Check for duplicates
-      if (await StorageService.instance.notificationExists(userId, messageId)) {
-        debugPrint('⚠️ Duplicate notification ignored: $messageId');
-        return;
-      }
-
-      final notification = NotificationModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: userId,
-        messageId: messageId,
-        title: message.notification?.title ?? message.data['title'] ?? 'Notification',
-        body: message.notification?.body ?? message.data['body'] ?? '',
-        timestamp: DateTime.now(),
-        isRead: false,
-        appState: appState,
-        data: message.data,
-      );
-
-      await StorageService.instance.saveNotification(notification);
-      debugPrint('✅ Notification saved: ${notification.id}');
-    } catch (e) {
-      debugPrint('❌ Failed to save notification: $e');
-    }
+    // No need to save - server already saved to Firestore
   }
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
@@ -231,6 +255,8 @@ class NotificationHandler {
 
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('👆 Notification tapped: ${response.payload}');
+    // Clear notifications when tapped
+    _clearNotificationsOnForeground();
     AppRouter.navigateToNotifications();
   }
 

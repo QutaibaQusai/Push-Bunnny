@@ -9,7 +9,7 @@ import 'package:push_bunnny/features/groups/providers/group_provider.dart';
 import 'package:push_bunnny/features/notifications/providers/notification_provider.dart';
 import 'package:push_bunnny/ui/app.dart';
 
-// Background message handler - must be top-level function
+// Simple background message handler - server handles saving
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -19,14 +19,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
-  // Set background message handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  
-  // Initialize app services
-  await AppInitializer.initialize();
+  try {
+    // Initialize Firebase
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    
+    // Set background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    
+    // Initialize app services
+    await AppInitializer.initialize();
+    
+  } catch (e) {
+    debugPrint('❌ Error during app initialization: $e');
+  }
   
   runApp(
     MultiProvider(
@@ -38,5 +43,3 @@ void main() async {
     ),
   );
 }
-
-

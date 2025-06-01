@@ -42,18 +42,39 @@ class NotificationModel {
       messageId: map['messageId'] ?? '',
       title: map['title'] ?? '',
       body: map['body'] ?? '',
-      timestamp: map['timestamp'] is String 
-          ? DateTime.parse(map['timestamp'])
-          : map['timestamp'] ?? DateTime.now(),
+      timestamp: _parseDateTime(map['timestamp']) ?? DateTime.now(),
       isRead: map['isRead'] ?? false,
-      readAt: map['readAt'] != null 
-          ? (map['readAt'] is String 
-              ? DateTime.parse(map['readAt'])
-              : map['readAt'])
-          : null,
+      readAt: _parseDateTime(map['readAt']),
       appState: map['appState'] ?? 'unknown',
       data: Map<String, dynamic>.from(map['data'] ?? {}),
     );
+  }
+
+  // Helper method to parse different date formats
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    
+    if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        print('❌ Failed to parse DateTime from string: $value');
+        return null;
+      }
+    } else if (value.runtimeType.toString() == 'Timestamp') {
+      // Handle Firestore Timestamp
+      try {
+        return (value as dynamic).toDate();
+      } catch (e) {
+        print('❌ Failed to convert Timestamp to DateTime: $e');
+        return null;
+      }
+    }
+    
+    print('❌ Unknown timestamp type: ${value.runtimeType}');
+    return null;
   }
 
   Map<String, dynamic> toMap() {
