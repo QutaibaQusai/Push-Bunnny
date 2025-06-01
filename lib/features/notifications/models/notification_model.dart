@@ -26,8 +26,27 @@ class NotificationModel {
   // Getters for new data structure
   String? get type => data['type']; // 'user' or 'group'
   String? get targetId => data['id']; // user_id or group_id
-  String? get imageUrl => data['image'];
   String? get link => data['link'];
+  
+  // Multiple possible image keys to check
+  String? get imageUrl {
+    // Debug: Print all data keys to see what's available
+    print('🔍 Notification data keys: ${data.keys.toList()}');
+    print('🔍 Full notification data: $data');
+    
+    // Check multiple possible image field names
+    final possibleImageKeys = ['image', 'imageUrl', 'photo', 'picture', 'img'];
+    
+    for (String key in possibleImageKeys) {
+      if (data[key] != null && data[key].toString().isNotEmpty) {
+        print('✅ Found image at key "$key": ${data[key]}');
+        return data[key].toString();
+      }
+    }
+    
+    print('❌ No image found in notification data');
+    return null;
+  }
   
   // For backward compatibility and UI display
   String? get groupId => type == 'group' ? targetId : null;
@@ -36,6 +55,9 @@ class NotificationModel {
   bool get isUserNotification => type == 'user';
 
   factory NotificationModel.fromMap(Map<String, dynamic> map) {
+    // Debug: Print the incoming map
+    print('🔍 Creating NotificationModel from map: $map');
+    
     return NotificationModel(
       id: map['id'] ?? '',
       userId: map['userId'] ?? '',
@@ -120,6 +142,6 @@ class NotificationModel {
 
   @override
   String toString() {
-    return 'NotificationModel(id: $id, title: $title, type: $type, targetId: $targetId)';
+    return 'NotificationModel(id: $id, title: $title, type: $type, targetId: $targetId, imageUrl: $imageUrl)';
   }
 }
